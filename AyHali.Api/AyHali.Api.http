@@ -1,0 +1,41 @@
+@AyHali.Api_HostAddress = http://localhost:5189
+
+GET {{AyHali.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+GET {{AyHali.Api_HostAddress}}/api/products?page=1&pageSize=12&sortBy=newest
+Accept: application/json
+
+###
+
+POST {{AyHali.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Modern Bej Salon Halısı",
+  "code": "AH-1024",
+  "description": "Modern salon dekorasyonuna uygun, yumuşak dokulu bej halı.",
+  "categoryId": 1,
+  "styleId": 1,
+  "materialId": 1,
+  "price": 8500,
+  "discountPrice": 7200,
+  "isDiscounted": true,
+  "isAvailable": true,
+  "isFeatured": true,
+  "colorIds": [1, 3],
+  "sizes": [
+    {
+      "sizeId": 3,
+      "stockQuantity": 2
+    },
+    {
+      "sizeId": 4,
+      "stockQuantity": 1
+    }
+  ]
+}
+
+###
