@@ -16,6 +16,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
 
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<LookupService>();
+builder.Services.AddScoped<ProductImageService>();
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -32,6 +34,7 @@ else
     app.UseHttpsRedirection();
 }
 
+app.UseStaticFiles();
 app.UseAuthorization();
 
 app.MapControllers();

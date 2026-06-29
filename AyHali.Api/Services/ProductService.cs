@@ -91,8 +91,10 @@ public class ProductService(AppDbContext dbContext)
                     .ThenBy(image => image.DisplayOrder)
                     .Select(image => new ProductImageDto
                     {
+                        Id = image.Id,
                         Url = image.ImageUrl,
-                        IsMainImage = image.IsMainImage
+                        IsMainImage = image.IsMainImage,
+                        DisplayOrder = image.DisplayOrder
                     })
                     .ToList()
             })

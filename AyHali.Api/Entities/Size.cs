@@ -1,6 +1,6 @@
 namespace AyHali.Api.Entities;
 
-public class Size
+public class Size : ILookupEntity
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

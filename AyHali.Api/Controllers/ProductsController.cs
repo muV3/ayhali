@@ -7,7 +7,9 @@ namespace AyHali.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProductsController(ProductService productService) : ControllerBase
+public class ProductsController(
+    ProductService productService,
+    ProductImageService productImageService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetProducts(
@@ -59,5 +61,42 @@ public class ProductsController(ProductService productService) : ControllerBase
     {
         var deleted = await productService.DeleteProductAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{id:int}/images")]
+    public async Task<IActionResult> UploadProductImage(
+        int id,
+        IFormFile file,
+        [FromForm] bool isMainImage,
+        [FromForm] int? displayOrder,
+        CancellationToken cancellationToken)
+    {
+        var (image, error, notFound) = await productImageService.UploadImageAsync(
+            id,
+            file,
+            isMainImage,
+            displayOrder,
+            cancellationToken);
+
+        if (notFound)
+        {
+            return NotFound();
+        }
+
+        return error is not null ? BadRequest(new { message = error }) : Ok(image);
+    }
+
+    [HttpDelete("{productId:int}/images/{imageId:int}")]
+    public async Task<IActionResult> DeleteProductImage(
+        int productId,
+        int imageId,
+        CancellationToken cancellationToken)
+    {
+        var (deleted, productNotFound) = await productImageService.DeleteImageAsync(
+            productId,
+            imageId,
+            cancellationToken);
+
+        return productNotFound || !deleted ? NotFound() : NoContent();
     }
 }

@@ -1,6 +1,6 @@
 namespace AyHali.Api.Entities;
 
-public class Color
+public class Color : ILookupEntity
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
