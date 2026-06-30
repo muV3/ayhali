@@ -1,6 +1,7 @@
 using AyHali.Api.DTOs.Attributes;
 using AyHali.Api.Entities;
 using AyHali.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AyHali.Api.Controllers;
@@ -15,6 +16,7 @@ public abstract class LookupController<TEntity>(LookupService lookupService) : C
         return Ok(attributes);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> Create(
         UpsertAttributeDto dto,
@@ -26,6 +28,7 @@ public abstract class LookupController<TEntity>(LookupService lookupService) : C
             : Created(string.Empty, attribute);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
@@ -41,6 +44,7 @@ public abstract class LookupController<TEntity>(LookupService lookupService) : C
         return attribute is null ? NotFound() : Ok(attribute);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {

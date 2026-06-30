@@ -1,6 +1,7 @@
 using AyHali.Api.DTOs.Products;
 using AyHali.Api.Helpers;
 using AyHali.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AyHali.Api.Controllers;
@@ -27,6 +28,7 @@ public class ProductsController(
         return product is null ? NotFound() : Ok(product);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> CreateProduct(
         CreateProductDto dto,
@@ -41,6 +43,7 @@ public class ProductsController(
         return CreatedAtAction(nameof(GetProduct), new { id = product!.Id }, product);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateProduct(
         int id,
@@ -56,6 +59,7 @@ public class ProductsController(
         return product is null ? NotFound() : Ok(product);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
     {
@@ -63,6 +67,7 @@ public class ProductsController(
         return deleted ? NoContent() : NotFound();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("{id:int}/images")]
     public async Task<IActionResult> UploadProductImage(
         int id,
@@ -86,6 +91,7 @@ public class ProductsController(
         return error is not null ? BadRequest(new { message = error }) : Ok(image);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{productId:int}/images/{imageId:int}")]
     public async Task<IActionResult> DeleteProductImage(
         int productId,

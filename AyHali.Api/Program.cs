@@ -1,5 +1,8 @@
+using AyHali.Api.Authentication;
 using AyHali.Api.Data;
+using AyHali.Api.Options;
 using AyHali.Api.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +18,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlServerOptions => sqlServerOptions.EnableRetryOnFailure()));
 
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddAuthentication("Bearer")
+    .AddScheme<AuthenticationSchemeOptions, BearerAuthenticationHandler>("Bearer", null);
+builder.Services.AddAuthorization();
+
+builder.Services.AddHostedService<AdminBootstrapper>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<PasswordHashService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<LookupService>();
 builder.Services.AddScoped<ProductImageService>();
@@ -35,6 +47,7 @@ else
 }
 
 app.UseStaticFiles();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
