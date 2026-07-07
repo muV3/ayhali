@@ -1,0 +1,42 @@
+@Perdecim.Api_HostAddress = https://localhost:7237
+
+GET {{Perdecim.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+GET {{Perdecim.Api_HostAddress}}/api/products?page=1&pageSize=12&sortBy=newest
+Accept: application/json
+
+###
+
+POST {{Perdecim.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Keten Dokulu Bej Fon Perde",
+  "code": "PRD-1024",
+  "description": "Modern salon dekorasyonuna uygun, dökümlü ve sıcak tonlu fon perde.",
+  "categoryId": 1,
+  "styleId": 1,
+  "materialId": 1,
+  "price": 8500,
+  "discountPrice": 7200,
+  "isDiscounted": true,
+  "isAvailable": true,
+  "isFeatured": true,
+  "colorIds": [1, 3],
+  "sizes": [
+    {
+      "sizeId": 3,
+      "stockQuantity": 2
+    },
+    {
+      "sizeId": 4,
+      "stockQuantity": 1
+    }
+  ]
+}
+
+###
+
