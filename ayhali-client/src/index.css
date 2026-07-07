@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;750;800&family=Manrope:wght@600;700;800&display=swap');
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -134,6 +136,10 @@ code {
 html,
 body {
   background: var(--bg);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {

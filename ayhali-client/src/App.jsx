@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import LandingPage from './LandingPage.jsx'
 import heroImg from './assets/showroom-hero.png'
 import './App.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7046'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '905555555555'
 
 const fallbackProducts = [
@@ -55,8 +56,17 @@ function ProductArtwork({ product }) {
   )
 }
 
-function App() {
-  const [route, setRoute] = useState({ name: 'home' })
+function runPageTransition(updatePage) {
+  if (document.startViewTransition) {
+    document.startViewTransition(updatePage)
+    return
+  }
+
+  updatePage()
+}
+
+function LegacyCatalogApp({ onBackHome }) {
+  const [route, setRoute] = useState({ name: 'products' })
   const [products, setProducts] = useState([])
   const [attributes, setAttributes] = useState(fallbackAttributes)
   const [isLoading, setIsLoading] = useState(true)
@@ -130,20 +140,21 @@ function App() {
   const selectedProduct = products.find((product) => product.id === route.productId)
 
   function navigate(nextRoute) {
-    setRoute(nextRoute)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    runPageTransition(() => {
+      setRoute(nextRoute)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
   }
 
   return (
     <div className="app-shell">
       <header className="site-header">
-        <button className="brand" type="button" onClick={() => navigate({ name: 'home' })}>
+        <button className="brand" type="button" onClick={onBackHome}>
           <strong>Ay Halı</strong>
           <span>Zonguldak</span>
         </button>
         <nav aria-label="Ana menü">
           {[
-            ['home', 'Ana Sayfa'],
             ['products', 'Modeller'],
             ['campaigns', 'Kampanyalar'],
             ['contact', 'İletişim'],
@@ -300,6 +311,20 @@ function Price({ product }) {
       {product.isDiscounted && product.discountPrice ? <><strong>{formatPrice(product.discountPrice)}</strong><span>{formatPrice(product.price)}</span></> : <strong>{formatPrice(product.price)}</strong>}
     </div>
   )
+}
+
+function App() {
+  const [page, setPage] = useState('landing')
+
+  function navigatePage(nextPage) {
+    runPageTransition(() => setPage(nextPage))
+  }
+
+  if (page === 'products') {
+    return <LegacyCatalogApp onBackHome={() => navigatePage('landing')} />
+  }
+
+  return <LandingPage onOpenProducts={() => navigatePage('products')} />
 }
 
 export default App
