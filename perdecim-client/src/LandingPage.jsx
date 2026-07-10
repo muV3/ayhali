@@ -155,10 +155,10 @@ function LandingPage({ onOpenProducts }) {
           <a href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>Yeni Gelenler</a>
           <a href="#best-sellers" onClick={(event) => handleSectionLink(event, '#best-sellers')}>Çok Satanlar</a>
           <a href="#featured" onClick={(event) => handleSectionLink(event, '#featured')}>Öne Çıkan</a>
-          <button type="button" onClick={onOpenProducts}>Modeller</button>
+          <button type="button" onClick={onOpenProducts}>MODELLER</button>
         </nav>
         <a className="landing-header-action button button-primary button-sm" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-          İletişim
+          İLETİŞİM
         </a>
       </header>
 
@@ -168,10 +168,10 @@ function LandingPage({ onOpenProducts }) {
             <h1>Perdecim</h1>
             <span>Modern, sakin ve zamansız perde seçkileriyle yaşam alanınıza dengeli bir ışık ve doku katın.</span>
             <div className="landing-hero-actions">
-              <a className="primary-button button button-primary" href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>Koleksiyonu İncele</a>
-              <button className="primary-button button button-primary" type="button" onClick={onOpenProducts}>Tüm Modeller</button>
+              <a className="primary-button button button-primary" href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>KOLEKSİYONU İNCELE</a>
+              <button className="primary-button button button-primary" type="button" onClick={onOpenProducts}>TÜM MODELLER</button>
               <a className="secondary-button button button-secondary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-                WhatsApp
+                WHATSAPP
               </a>
             </div>
           </div>
@@ -218,7 +218,7 @@ function LandingPage({ onOpenProducts }) {
               <div className="featured-product-actions">
                 <Price product={featuredProduct} />
                 <a className="primary-button button button-primary" href={createWhatsAppLink(featuredProduct)} target="_blank" rel="noreferrer">
-                  Ürün İçin Yaz
+                  ÜRÜN İÇİN YAZ
                 </a>
               </div>
             </div>
@@ -229,7 +229,7 @@ function LandingPage({ onOpenProducts }) {
           <p className="section-eyebrow">Perdecim Zonguldak</p>
           <h2>Doğru ölçü, doğru doku ve sakin bir alışveriş deneyimi için bize yazın.</h2>
           <a className="primary-button button button-primary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-            WhatsApp'tan Randevu Al
+            WHATSAPP'TAN RANDEVU AL
           </a>
         </section>
       </main>

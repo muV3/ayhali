@@ -155,16 +155,16 @@ function LegacyCatalogApp({ onBackHome }) {
         </button>
         <nav aria-label="Ana menü">
           {[
-            ['products', 'Modeller'],
-            ['campaigns', 'Kampanyalar'],
-            ['contact', 'İletişim'],
+            ['products', 'MODELLER'],
+            ['campaigns', 'KAMPANYALAR'],
+            ['contact', 'İLETİŞİM'],
           ].map(([name, label]) => (
             <button className={route.name === name ? 'active' : ''} key={name} type="button" onClick={() => navigate({ name })}>
               {label}
             </button>
           ))}
         </nav>
-        <a className="header-action button button-primary button-sm" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WhatsApp</a>
+        <a className="header-action button button-primary button-sm" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP</a>
       </header>
 
       {route.name === 'home' && (
@@ -175,8 +175,8 @@ function LegacyCatalogApp({ onBackHome }) {
               <p>Zonguldak'ın dijital perde showroom'u</p>
               <h1>Kaliteli ve şık perde modellerini mağazaya gelmeden inceleyin.</h1>
               <div className="hero-actions">
-                <button className="button button-primary" type="button" onClick={() => navigate({ name: 'products' })}>Modelleri İncele</button>
-                <a className="button button-secondary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WhatsApp'tan Yaz</a>
+                <button className="button button-primary" type="button" onClick={() => navigate({ name: 'products' })}>MODELLERİ İNCELE</button>
+                <a className="button button-secondary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP'TAN YAZ</a>
               </div>
             </div>
           </section>
@@ -201,7 +201,7 @@ function LegacyCatalogApp({ onBackHome }) {
           <section className="catalog-results">
             <div className="section-heading inline">
               <div><p>{isLoading ? 'Yükleniyor' : `${visibleProducts.length} model`}</p><h2>Perde modelleri</h2></div>
-              <button className="button button-primary button-sm" type="button" onClick={() => setFilters({ ...filters, discounted: true })}>İndirimleri Göster</button>
+              <button className="button button-primary button-sm" type="button" onClick={() => setFilters({ ...filters, discounted: true })}>İNDİRİMLERİ GÖSTER</button>
             </div>
             <ProductGrid products={visibleProducts} onOpen={(product) => navigate({ name: 'detail', productId: product.id })} />
           </section>
@@ -219,7 +219,7 @@ function LegacyCatalogApp({ onBackHome }) {
         <main className="detail-layout">
           <div className="detail-media"><ProductArtwork product={selectedProduct} /></div>
           <section className="detail-content">
-            <button className="back-button button button-outline button-sm" type="button" onClick={() => navigate({ name: 'products' })}>Geri</button>
+            <button className="back-button button button-outline button-sm" type="button" onClick={() => navigate({ name: 'products' })}>GERİ</button>
             <p className="product-code">{selectedProduct.code}</p>
             <h1>{selectedProduct.name}</h1>
             <p>{selectedProduct.description}</p>
@@ -230,7 +230,7 @@ function LegacyCatalogApp({ onBackHome }) {
               <div><dt>Ölçüler</dt><dd>{selectedProduct.sizes?.join(', ')}</dd></div>
               <div><dt>Durum</dt><dd>{selectedProduct.isAvailable ? 'Mağazada mevcut' : 'Stokta yok'}</dd></div>
             </dl>
-            <a className="primary-link button button-primary" href={createWhatsAppLink(selectedProduct)} target="_blank" rel="noreferrer">Bu ürün için WhatsApp'tan yaz</a>
+            <a className="primary-link button button-primary" href={createWhatsAppLink(selectedProduct)} target="_blank" rel="noreferrer">BU ÜRÜN İÇİN WHATSAPP'TAN YAZ</a>
           </section>
         </main>
       )}
@@ -240,7 +240,7 @@ function LegacyCatalogApp({ onBackHome }) {
           <section>
             <p>İletişim</p>
             <h1>Mağazaya gelmeden önce modeli seçin, ürün koduyla bize yazın.</h1>
-            <a className="primary-link button button-primary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WhatsApp'tan Yaz</a>
+            <a className="primary-link button button-primary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP'TAN YAZ</a>
           </section>
           <aside className="contact-panel">
             <strong>Perdecim Zonguldak</strong>
@@ -297,7 +297,7 @@ function ProductGrid({ onOpen, products }) {
             <h3>{product.name}</h3>
             <Price product={product} />
             <div className="tag-row"><span>{product.category}</span><span>{product.isAvailable ? 'Stokta' : 'Tükendi'}</span></div>
-            <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>Detay</button><a className="button button-primary button-sm" href={createWhatsAppLink(product)} target="_blank" rel="noreferrer">WhatsApp</a></div>
+            <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>DETAY</button><a className="button button-primary button-sm" href={createWhatsAppLink(product)} target="_blank" rel="noreferrer">WHATSAPP</a></div>
           </div>
         </article>
       ))}
