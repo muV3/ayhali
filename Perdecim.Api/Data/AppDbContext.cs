@@ -38,7 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(product => product.Code).HasMaxLength(100).IsRequired();
             entity.Property(product => product.Price).HasPrecision(18, 2);
             entity.Property(product => product.DiscountPrice).HasPrecision(18, 2);
-            entity.Property(product => product.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(product => product.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(product => product.IsAvailable).HasDefaultValue(true);
 
             entity.HasOne(product => product.Category)
@@ -140,7 +140,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(adminUser => adminUser.Email).HasMaxLength(200).IsRequired();
             entity.Property(adminUser => adminUser.PasswordHash).IsRequired();
             entity.Property(adminUser => adminUser.Role).HasMaxLength(50).HasDefaultValue("Admin").IsRequired();
-            entity.Property(adminUser => adminUser.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(adminUser => adminUser.CreatedAt).HasDefaultValueSql("now()");
         });
     }
 
@@ -151,7 +151,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(inquiry => inquiry.CustomerName).HasMaxLength(150);
             entity.Property(inquiry => inquiry.CustomerPhone).HasMaxLength(50);
             entity.Property(inquiry => inquiry.Source).HasMaxLength(100);
-            entity.Property(inquiry => inquiry.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+            entity.Property(inquiry => inquiry.CreatedAt).HasDefaultValueSql("now()");
 
             entity.HasOne(inquiry => inquiry.Product)
                 .WithMany()
