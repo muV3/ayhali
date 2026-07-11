@@ -95,29 +95,29 @@ app.Run();
 
 static string GetDatabaseConnectionString(IConfiguration configuration)
 {
+    var databaseUrl = configuration["DATABASE_URL"];
+    if (!string.IsNullOrWhiteSpace(databaseUrl) && Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri))
+    {
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            Username = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(0) ?? string.Empty),
+            Password = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(1) ?? string.Empty),
+            SslMode = SslMode.Require
+        };
+
+        return builder.ConnectionString;
+    }
+
     var connectionString = configuration.GetConnectionString("DefaultConnection");
     if (!string.IsNullOrWhiteSpace(connectionString))
     {
         return connectionString;
     }
 
-    var databaseUrl = configuration["DATABASE_URL"];
-    if (string.IsNullOrWhiteSpace(databaseUrl) || !Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri))
-    {
-        throw new InvalidOperationException("Database connection is not configured.");
-    }
-
-    var userInfo = uri.UserInfo.Split(':', 2);
-    var builder = new NpgsqlConnectionStringBuilder
-    {
-        Host = uri.Host,
-        Port = uri.Port > 0 ? uri.Port : 5432,
-        Database = uri.AbsolutePath.TrimStart('/'),
-        Username = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(0) ?? string.Empty),
-        Password = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(1) ?? string.Empty),
-        SslMode = SslMode.Require
-    };
-
-    return builder.ConnectionString;
+    throw new InvalidOperationException("Database connection is not configured.");
 }
 

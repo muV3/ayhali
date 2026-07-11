@@ -42,6 +42,8 @@ Storage__ProductImagePrefix=products
 
 You can use `ConnectionStrings__DefaultConnection=<Npgsql connection string>` instead of `DATABASE_URL` if you prefer explicit .NET-style connection strings.
 
+When `DATABASE_URL` is present, the API prefers it over the local fallback connection string in `appsettings.json`.
+
 After the first successful deploy, consider setting `Database__ApplyMigrationsOnStartup=false` and running migrations deliberately during future releases.
 
 ## Frontend service
