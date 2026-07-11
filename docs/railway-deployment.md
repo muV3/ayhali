@@ -16,6 +16,8 @@ Health check path:
 
 Use `/api/health/ready` when you want to manually confirm database connectivity after deployment.
 
+Railway checks the container over HTTP after terminating TLS at the edge, so the API intentionally skips ASP.NET Core HTTPS redirection when `PORT` is present.
+
 Required variables:
 
 ```text
@@ -63,6 +65,7 @@ npm run start
 Required variables:
 
 ```text
+NIXPACKS_NODE_VERSION=22
 VITE_API_BASE_URL=https://<api-domain>
 VITE_WHATSAPP_NUMBER=<phone number with country code>
 ```

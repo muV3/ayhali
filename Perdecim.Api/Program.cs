@@ -9,7 +9,8 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(port))
+var isRailwayContainer = !string.IsNullOrWhiteSpace(port);
+if (isRailwayContainer)
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
@@ -61,9 +62,16 @@ var app = builder.Build();
 
 if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await dbContext.Database.MigrateAsync();
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+    catch (Exception exception)
+    {
+        app.Logger.LogError(exception, "Database migration failed during startup.");
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -71,7 +79,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-else
+else if (!isRailwayContainer)
 {
     app.UseHttpsRedirection();
 }
