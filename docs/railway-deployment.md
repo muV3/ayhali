@@ -8,6 +8,14 @@ Railway should build the API from `Perdecim.Api/Dockerfile`.
 
 Railway can use `Perdecim.Api/railway.json`.
 
+Health check path:
+
+```text
+/api/health
+```
+
+Use `/api/health/ready` when you want to manually confirm database connectivity after deployment.
+
 Required variables:
 
 ```text
@@ -43,7 +51,7 @@ Railway can use `perdecim-client/railway.json`.
 Build command:
 
 ```text
-npm ci && npm run build
+npm run build
 ```
 
 Start command:
