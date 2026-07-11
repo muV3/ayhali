@@ -1,11 +1,20 @@
 using Perdecim.Api.Data;
 using Perdecim.Api.DTOs.Products;
 using Perdecim.Api.Entities;
+using Perdecim.Api.Options;
+using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Perdecim.Api.Services;
 
-public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment environment)
+public class ProductImageService(
+    AppDbContext dbContext,
+    IWebHostEnvironment environment,
+    IOptions<StorageOptions> storageOptions)
 {
     private const long MaxFileSize = 10 * 1024 * 1024;
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -15,6 +24,35 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         ".png",
         ".webp"
     };
+
+    public async Task<(Stream? Content, string? ContentType)> GetImageAsync(
+        string objectKey,
+        CancellationToken cancellationToken)
+    {
+        if (!IsValidObjectKey(objectKey))
+        {
+            return (null, null);
+        }
+
+        if (storageOptions.Value.UseS3)
+        {
+            using var client = CreateS3Client(storageOptions.Value);
+            var response = await client.GetObjectAsync(
+                storageOptions.Value.BucketName,
+                objectKey,
+                cancellationToken);
+
+            return (response.ResponseStream, response.Headers.ContentType);
+        }
+
+        var filePath = Path.Combine(GetUploadDirectory(), Path.GetFileName(objectKey));
+        if (!File.Exists(filePath))
+        {
+            return (null, null);
+        }
+
+        return (File.OpenRead(filePath), GetContentType(filePath));
+    }
 
     public async Task<(ProductImageDto? Image, string? Error, bool NotFound)> UploadImageAsync(
         int productId,
@@ -49,19 +87,12 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
 
         var extension = Path.GetExtension(file.FileName);
         var fileName = $"{productId}-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
-        var uploadDirectory = GetUploadDirectory();
-        Directory.CreateDirectory(uploadDirectory);
-
-        var filePath = Path.Combine(uploadDirectory, fileName);
-        await using (var stream = File.Create(filePath))
-        {
-            await file.CopyToAsync(stream, cancellationToken);
-        }
+        var imageUrl = await SaveFileAsync(file, fileName, cancellationToken);
 
         var imageEntity = new ProductImage
         {
             ProductId = productId,
-            ImageUrl = $"/uploads/products/{fileName}",
+            ImageUrl = imageUrl,
             IsMainImage = shouldBeMainImage,
             DisplayOrder = displayOrder ?? GetNextDisplayOrder(existingImages)
         };
@@ -74,7 +105,7 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         }
         catch
         {
-            File.Delete(filePath);
+            await DeleteStoredFileAsync(imageUrl, cancellationToken);
             throw;
         }
 
@@ -116,7 +147,7 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        DeleteLocalFile(image.ImageUrl);
+        await DeleteStoredFileAsync(image.ImageUrl, cancellationToken);
 
         return (true, false);
     }
@@ -142,6 +173,48 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         return null;
     }
 
+    private async Task<string> SaveFileAsync(IFormFile file, string fileName, CancellationToken cancellationToken)
+    {
+        if (storageOptions.Value.UseS3)
+        {
+            return await SaveS3FileAsync(file, fileName, cancellationToken);
+        }
+
+        return await SaveLocalFileAsync(file, fileName, cancellationToken);
+    }
+
+    private async Task<string> SaveLocalFileAsync(IFormFile file, string fileName, CancellationToken cancellationToken)
+    {
+        var uploadDirectory = GetUploadDirectory();
+        Directory.CreateDirectory(uploadDirectory);
+
+        var filePath = Path.Combine(uploadDirectory, fileName);
+        await using var stream = File.Create(filePath);
+        await file.CopyToAsync(stream, cancellationToken);
+
+        return BuildImageRoute(BuildObjectKey(fileName));
+    }
+
+    private async Task<string> SaveS3FileAsync(IFormFile file, string fileName, CancellationToken cancellationToken)
+    {
+        var options = storageOptions.Value;
+        var objectKey = BuildObjectKey(fileName);
+
+        await using var stream = file.OpenReadStream();
+        using var client = CreateS3Client(options);
+
+        await client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = options.BucketName,
+            Key = objectKey,
+            InputStream = stream,
+            ContentType = file.ContentType,
+            AutoCloseStream = false
+        }, cancellationToken);
+
+        return BuildImageRoute(objectKey);
+    }
+
     private string GetUploadDirectory()
     {
         var webRootPath = environment.WebRootPath;
@@ -151,6 +224,17 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         }
 
         return Path.Combine(webRootPath, "uploads", "products");
+    }
+
+    private async Task DeleteStoredFileAsync(string imageUrl, CancellationToken cancellationToken)
+    {
+        if (storageOptions.Value.UseS3)
+        {
+            await DeleteS3FileAsync(imageUrl, cancellationToken);
+            return;
+        }
+
+        DeleteLocalFile(imageUrl);
     }
 
     private void DeleteLocalFile(string imageUrl)
@@ -166,6 +250,94 @@ public class ProductImageService(AppDbContext dbContext, IWebHostEnvironment env
         {
             File.Delete(filePath);
         }
+    }
+
+    private async Task DeleteS3FileAsync(string imageUrl, CancellationToken cancellationToken)
+    {
+        var options = storageOptions.Value;
+        var objectKey = GetObjectKeyFromUrl(imageUrl);
+        if (string.IsNullOrWhiteSpace(objectKey))
+        {
+            return;
+        }
+
+        using var client = CreateS3Client(options);
+        await client.DeleteObjectAsync(options.BucketName, objectKey, cancellationToken);
+    }
+
+    private static AmazonS3Client CreateS3Client(StorageOptions options)
+    {
+        var credentials = new BasicAWSCredentials(options.AccessKeyId, options.SecretAccessKey);
+        var config = new AmazonS3Config
+        {
+            ForcePathStyle = true,
+            RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region)
+        };
+
+        if (!string.IsNullOrWhiteSpace(options.Endpoint))
+        {
+            config.ServiceURL = options.Endpoint;
+        }
+
+        return new AmazonS3Client(credentials, config);
+    }
+
+    private string BuildObjectKey(string fileName)
+    {
+        var prefix = storageOptions.Value.ProductImagePrefix.Trim('/');
+        return string.IsNullOrWhiteSpace(prefix) ? fileName : $"{prefix}/{fileName}";
+    }
+
+    private static string BuildImageRoute(string objectKey)
+    {
+        return $"/api/product-images/{objectKey}";
+    }
+
+    private string? GetObjectKeyFromUrl(string imageUrl)
+    {
+        var prefix = storageOptions.Value.ProductImagePrefix.Trim('/');
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
+        {
+            return GetObjectKeyFromPath(uri.AbsolutePath);
+        }
+
+        return GetObjectKeyFromPath(imageUrl);
+    }
+
+    private string? GetObjectKeyFromPath(string path)
+    {
+        const string imageRoutePrefix = "/api/product-images/";
+        if (path.StartsWith(imageRoutePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return path[imageRoutePrefix.Length..].TrimStart('/');
+        }
+
+        var fileName = Path.GetFileName(path);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var prefix = storageOptions.Value.ProductImagePrefix.Trim('/');
+        return string.IsNullOrWhiteSpace(prefix) ? fileName : $"{prefix}/{fileName}";
+    }
+
+    private static bool IsValidObjectKey(string objectKey)
+    {
+        return !string.IsNullOrWhiteSpace(objectKey)
+            && !objectKey.Contains("..", StringComparison.Ordinal)
+            && !Path.IsPathRooted(objectKey);
+    }
+
+    private static string GetContentType(string filePath)
+    {
+        return Path.GetExtension(filePath).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
 
     private static int GetNextDisplayOrder(IReadOnlyCollection<ProductImage> existingImages)
