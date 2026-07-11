@@ -9,7 +9,18 @@ namespace Perdecim.Api.Controllers;
 public class HealthController(AppDbContext dbContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken cancellationToken)
+    public IActionResult Get()
+    {
+        return Ok(new
+        {
+            status = "Healthy",
+            service = "Perdecim.Api",
+            timestamp = DateTimeOffset.UtcNow
+        });
+    }
+
+    [HttpGet("ready")]
+    public async Task<IActionResult> GetReady(CancellationToken cancellationToken)
     {
         var databaseIsHealthy = await dbContext.Database.CanConnectAsync(cancellationToken);
         var status = databaseIsHealthy ? "Healthy" : "Degraded";
