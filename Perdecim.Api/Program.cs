@@ -3,8 +3,11 @@ using Perdecim.Api.Data;
 using Perdecim.Api.Options;
 using Perdecim.Api.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +21,17 @@ if (isRailwayContainer)
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+
+if (isRailwayContainer)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 // Add services to the container.
 
@@ -41,8 +55,49 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
-builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "Jwt:Issuer is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "Jwt:Audience is required.")
+    .Validate(options => options.Secret?.Length >= 32, "Jwt:Secret must be at least 32 characters.")
+    .Validate(
+        options => builder.Environment.IsDevelopment()
+            || !options.Secret.Contains("replace-this-secret", StringComparison.OrdinalIgnoreCase),
+        "Jwt:Secret must be replaced in production.")
+    .Validate(
+        options => options.ExpirationMinutes is >= 5 and <= 120,
+        "Jwt:ExpirationMinutes must be between 5 and 120.")
+    .ValidateOnStart();
+builder.Services.AddOptions<StorageOptions>()
+    .Bind(builder.Configuration.GetSection("Storage"))
+    .Validate(
+        options => string.Equals(options.Provider, "Local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(options.Provider, "S3", StringComparison.OrdinalIgnoreCase),
+        "Storage:Provider must be Local or S3.")
+    .Validate(
+        options => !string.Equals(options.Provider, "S3", StringComparison.OrdinalIgnoreCase)
+            || options.UseS3,
+        "S3 storage requires a bucket name, access key ID, and secret access key.")
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.ProductImagePrefix)
+            && !options.ProductImagePrefix.Contains("..", StringComparison.Ordinal)
+            && !options.ProductImagePrefix.Contains('\\'),
+        "Storage:ProductImagePrefix must be a non-empty safe path prefix.")
+    .ValidateOnStart();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
 builder.Services.AddAuthentication("Bearer")
     .AddScheme<AuthenticationSchemeOptions, BearerAuthenticationHandler>("Bearer", null);
 builder.Services.AddAuthorization();
@@ -59,6 +114,11 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+if (isRailwayContainer)
+{
+    app.UseForwardedHeaders();
+}
 
 if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
@@ -84,8 +144,26 @@ else if (!isRailwayContainer)
     app.UseHttpsRedirection();
 }
 
-app.UseStaticFiles();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        context.Response.Headers.XFrameOptions = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        if (!app.Environment.IsDevelopment())
+        {
+            context.Response.Headers.StrictTransportSecurity = "max-age=31536000; includeSubDomains";
+        }
+
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

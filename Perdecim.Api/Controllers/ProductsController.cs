@@ -63,11 +63,19 @@ public class ProductsController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
     {
-        var deleted = await productService.DeleteProductAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound();
+        var (deleted, imageUrls) = await productService.DeleteProductAsync(id, cancellationToken);
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        await productImageService.DeleteStoredFilesAsync(imageUrls, cancellationToken);
+        return NoContent();
     }
 
     [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(11 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 11 * 1024 * 1024)]
     [HttpPost("{id:int}/images")]
     public async Task<IActionResult> UploadProductImage(
         int id,

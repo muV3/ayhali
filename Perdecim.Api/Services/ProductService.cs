@@ -198,17 +198,23 @@ public class ProductService(AppDbContext dbContext)
         return (await GetProductByIdAsync(id, cancellationToken), null);
     }
 
-    public async Task<bool> DeleteProductAsync(int id, CancellationToken cancellationToken)
+    public async Task<(bool Deleted, IReadOnlyList<string> ImageUrls)> DeleteProductAsync(
+        int id,
+        CancellationToken cancellationToken)
     {
-        var product = await dbContext.Products.FindAsync([id], cancellationToken);
+        var product = await dbContext.Products
+            .Include(item => item.Images)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (product is null)
         {
-            return false;
+            return (false, []);
         }
+
+        var imageUrls = product.Images.Select(image => image.ImageUrl).ToList();
 
         dbContext.Products.Remove(product);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return true;
+        return (true, imageUrls);
     }
 
     private IQueryable<Product> BuildFilteredQuery(ProductQueryParams queryParams)

@@ -4,7 +4,6 @@ import heroImg from './assets/curtain-showroom-hero.png'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '905555555555'
 
 const fallbackProducts = [
   { id: 1, name: 'Keten Dokulu Bej Fon Perde', code: 'PRD-1024', price: 8500, discountPrice: 7200, isDiscounted: true, isAvailable: true, isFeatured: true, category: 'Fon Perde', colors: ['Bej', 'Krem'], sizes: ['260x270', '300x270'], style: 'Modern', material: 'Keten Dokulu Kumaş', description: 'Salon ve oturma alanları için sıcak, dökümlü ve sakin bir fon perde seçeneği.' },
@@ -28,14 +27,6 @@ async function fetchJson(path) {
 
 function formatPrice(value) {
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value)
-}
-
-function createWhatsAppLink(product) {
-  const message = product
-    ? `Merhaba, Perdecim web sitenizde gördüğüm ${product.code} kodlu ${product.name} hakkında bilgi almak istiyorum.`
-    : 'Merhaba, Perdecim perde ürünleri hakkında bilgi almak istiyorum.'
-
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
 }
 
 function getMainImage(product) {
@@ -164,7 +155,6 @@ function LegacyCatalogApp({ onBackHome }) {
             </button>
           ))}
         </nav>
-        <a className="header-action button button-primary button-sm" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP</a>
       </header>
 
       {route.name === 'home' && (
@@ -176,7 +166,6 @@ function LegacyCatalogApp({ onBackHome }) {
               <h1>Kaliteli ve şık perde modellerini mağazaya gelmeden inceleyin.</h1>
               <div className="hero-actions">
                 <button className="button button-primary" type="button" onClick={() => navigate({ name: 'products' })}>MODELLERİ İNCELE</button>
-                <a className="button button-secondary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP'TAN YAZ</a>
               </div>
             </div>
           </section>
@@ -190,7 +179,7 @@ function LegacyCatalogApp({ onBackHome }) {
           <section className="trust-band">
             <div><strong>Yerel mağaza</strong><span>Zonguldak'ta yüz yüze destek</span></div>
             <div><strong>Net ürün bilgisi</strong><span>Ölçü, renk ve stok bilgisi tek ekranda</span></div>
-            <div><strong>Hızlı dönüş</strong><span>Ürün koduyla WhatsApp görüşmesi</span></div>
+            <div><strong>Güncel bilgi</strong><span>Ürün detayları ve stok durumu tek ekranda</span></div>
           </section>
         </main>
       )}
@@ -230,7 +219,6 @@ function LegacyCatalogApp({ onBackHome }) {
               <div><dt>Ölçüler</dt><dd>{selectedProduct.sizes?.join(', ')}</dd></div>
               <div><dt>Durum</dt><dd>{selectedProduct.isAvailable ? 'Mağazada mevcut' : 'Stokta yok'}</dd></div>
             </dl>
-            <a className="primary-link button button-primary" href={createWhatsAppLink(selectedProduct)} target="_blank" rel="noreferrer">BU ÜRÜN İÇİN WHATSAPP'TAN YAZ</a>
           </section>
         </main>
       )}
@@ -239,8 +227,7 @@ function LegacyCatalogApp({ onBackHome }) {
         <main className="contact-page">
           <section>
             <p>İletişim</p>
-            <h1>Mağazaya gelmeden önce modeli seçin, ürün koduyla bize yazın.</h1>
-            <a className="primary-link button button-primary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">WHATSAPP'TAN YAZ</a>
+            <h1>Mağazaya gelmeden önce modeli seçin, ardından bizi ziyaret edin.</h1>
           </section>
           <aside className="contact-panel">
             <strong>Perdecim Zonguldak</strong>
@@ -253,7 +240,7 @@ function LegacyCatalogApp({ onBackHome }) {
         </main>
       )}
 
-      <footer><span>Perdecim</span><span>Zonguldak'ta perde modelleri, kampanyalar ve WhatsApp satış desteği.</span></footer>
+      <footer><span>Perdecim</span><span>Zonguldak'ta perde modelleri, kampanyalar ve mağaza desteği.</span></footer>
     </div>
   )
 }
@@ -297,7 +284,7 @@ function ProductGrid({ onOpen, products }) {
             <h3>{product.name}</h3>
             <Price product={product} />
             <div className="tag-row"><span>{product.category}</span><span>{product.isAvailable ? 'Stokta' : 'Tükendi'}</span></div>
-            <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>DETAY</button><a className="button button-primary button-sm" href={createWhatsAppLink(product)} target="_blank" rel="noreferrer">WHATSAPP</a></div>
+            <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>DETAY</button></div>
           </div>
         </article>
       ))}

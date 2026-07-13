@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import heroImg from './assets/curtain-showroom-hero.png'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '905555555555'
 
 const fallbackProducts = [
   {
@@ -86,14 +85,6 @@ function formatPrice(value) {
   }).format(value)
 }
 
-function createWhatsAppLink(product) {
-  const message = product
-    ? `Merhaba, Perdecim web sitenizde gördüğüm ${product.code} kodlu ${product.name} hakkında bilgi almak istiyorum.`
-    : 'Merhaba, Perdecim perde ürünleri hakkında bilgi almak istiyorum.'
-
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-}
-
 function getMainImage(product) {
   return product.mainImageUrl || product.images?.find((image) => image.isMainImage)?.url
 }
@@ -157,9 +148,6 @@ function LandingPage({ onOpenProducts }) {
           <a href="#featured" onClick={(event) => handleSectionLink(event, '#featured')}>Öne Çıkan</a>
           <button type="button" onClick={onOpenProducts}>MODELLER</button>
         </nav>
-        <a className="landing-header-action button button-primary button-sm" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-          İLETİŞİM
-        </a>
       </header>
 
       <main>
@@ -170,9 +158,6 @@ function LandingPage({ onOpenProducts }) {
             <div className="landing-hero-actions">
               <a className="primary-button button button-primary" href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>KOLEKSİYONU İNCELE</a>
               <button className="primary-button button button-primary" type="button" onClick={onOpenProducts}>TÜM MODELLER</button>
-              <a className="secondary-button button button-secondary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-                WHATSAPP
-              </a>
             </div>
           </div>
         </section>
@@ -217,21 +202,11 @@ function LandingPage({ onOpenProducts }) {
               </dl>
               <div className="featured-product-actions">
                 <Price product={featuredProduct} />
-                <a className="primary-button button button-primary" href={createWhatsAppLink(featuredProduct)} target="_blank" rel="noreferrer">
-                  ÜRÜN İÇİN YAZ
-                </a>
               </div>
             </div>
           </section>
         )}
 
-        <section className="final-cta reveal-on-scroll">
-          <p className="section-eyebrow">Perdecim Zonguldak</p>
-          <h2>Doğru ölçü, doğru doku ve sakin bir alışveriş deneyimi için bize yazın.</h2>
-          <a className="primary-button button button-primary" href={createWhatsAppLink()} target="_blank" rel="noreferrer">
-            WHATSAPP'TAN RANDEVU AL
-          </a>
-        </section>
       </main>
 
       <footer className="landing-footer">
@@ -264,9 +239,9 @@ function ProductSection({ eyebrow, id, products, title, tone = 'light' }) {
 function ProductCard({ index, product }) {
   return (
     <article className="landing-product-card reveal-on-scroll" style={{ transitionDelay: `${index * 70}ms` }}>
-      <a className="landing-product-image" href={createWhatsAppLink(product)} target="_blank" rel="noreferrer">
+      <div className="landing-product-image">
         <ProductImage product={product} />
-      </a>
+      </div>
       <div className="landing-product-body">
         <p>{product.code}</p>
         <h3>{product.name}</h3>

@@ -17,6 +17,8 @@ public class JwtTokenService(IOptions<JwtOptions> jwtOptions)
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, adminUser.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new Claim(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(DateTime.UtcNow).ToString(), ClaimValueTypes.Integer64),
             new Claim(JwtRegisteredClaimNames.Email, adminUser.Email),
             new Claim(ClaimTypes.Email, adminUser.Email),
             new Claim(ClaimTypes.Role, adminUser.Role)

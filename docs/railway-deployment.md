@@ -27,7 +27,7 @@ Database__ApplyMigrationsOnStartup=true
 Jwt__Issuer=Perdecim.Api
 Jwt__Audience=Perdecim.Admin
 Jwt__Secret=<strong random secret>
-Jwt__ExpirationMinutes=120
+Jwt__ExpirationMinutes=60
 Admin__Email=<initial admin email>
 Admin__Password=<initial admin password>
 Cors__AllowedOrigins__0=https://<frontend-domain>
@@ -45,6 +45,21 @@ You can use `ConnectionStrings__DefaultConnection=<Npgsql connection string>` in
 When `DATABASE_URL` is present, the API prefers it over the local fallback connection string in `appsettings.json`.
 
 After the first successful deploy, consider setting `Database__ApplyMigrationsOnStartup=false` and running migrations deliberately during future releases.
+
+After the initial admin user has been created, remove `Admin__Email` and `Admin__Password` from the API service variables. They are bootstrap values and are not needed for normal login.
+
+Keep database and bucket credentials as Railway service references where possible. Never put secrets in a `VITE_` variable because Vite embeds those values in the public frontend bundle.
+
+## Local development secrets
+
+The repository does not contain local database, JWT, or admin credentials. Configure them with .NET User Secrets:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=perdecim_dev;Username=<user>;Password=<password>" --project .\Perdecim.Api\Perdecim.Api.csproj
+dotnet user-secrets set "Jwt:Secret" "<at-least-32-random-characters>" --project .\Perdecim.Api\Perdecim.Api.csproj
+dotnet user-secrets set "Admin:Email" "<admin-email>" --project .\Perdecim.Api\Perdecim.Api.csproj
+dotnet user-secrets set "Admin:Password" "<strong-bootstrap-password>" --project .\Perdecim.Api\Perdecim.Api.csproj
+```
 
 ## Frontend service
 
@@ -69,5 +84,4 @@ Required variables:
 ```text
 NIXPACKS_NODE_VERSION=22
 VITE_API_BASE_URL=https://<api-domain>
-VITE_WHATSAPP_NUMBER=<phone number with country code>
 ```

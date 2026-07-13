@@ -8,13 +8,15 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace Perdecim.Api.Services;
 
 public class ProductImageService(
     AppDbContext dbContext,
     IWebHostEnvironment environment,
-    IOptions<StorageOptions> storageOptions)
+    IOptions<StorageOptions> storageOptions,
+    ILogger<ProductImageService> logger)
 {
     private const long MaxFileSize = 10 * 1024 * 1024;
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -29,20 +31,35 @@ public class ProductImageService(
         string objectKey,
         CancellationToken cancellationToken)
     {
-        if (!IsValidObjectKey(objectKey))
+        if (!IsAllowedProductObjectKey(objectKey))
+        {
+            return (null, null);
+        }
+
+        var imageRoute = BuildImageRoute(objectKey);
+        if (!await dbContext.ProductImages
+                .AsNoTracking()
+                .AnyAsync(image => image.ImageUrl == imageRoute, cancellationToken))
         {
             return (null, null);
         }
 
         if (storageOptions.Value.UseS3)
         {
-            using var client = CreateS3Client(storageOptions.Value);
-            var response = await client.GetObjectAsync(
-                storageOptions.Value.BucketName,
-                objectKey,
-                cancellationToken);
+            try
+            {
+                using var client = CreateS3Client(storageOptions.Value);
+                var response = await client.GetObjectAsync(
+                    storageOptions.Value.BucketName,
+                    objectKey,
+                    cancellationToken);
 
-            return (response.ResponseStream, response.Headers.ContentType);
+                return (response.ResponseStream, GetContentType(objectKey));
+            }
+            catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+            {
+                return (null, null);
+            }
         }
 
         var filePath = Path.Combine(GetUploadDirectory(), Path.GetFileName(objectKey));
@@ -66,7 +83,7 @@ public class ProductImageService(
             return (null, null, true);
         }
 
-        var validationError = ValidateFile(file);
+        var validationError = await ValidateFileAsync(file, cancellationToken);
         if (validationError is not null)
         {
             return (null, validationError, false);
@@ -105,7 +122,7 @@ public class ProductImageService(
         }
         catch
         {
-            await DeleteStoredFileAsync(imageUrl, cancellationToken);
+            await DeleteStoredFilesAsync([imageUrl], cancellationToken);
             throw;
         }
 
@@ -147,12 +164,14 @@ public class ProductImageService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await DeleteStoredFileAsync(image.ImageUrl, cancellationToken);
+        await DeleteStoredFilesAsync([image.ImageUrl], cancellationToken);
 
         return (true, false);
     }
 
-    private static string? ValidateFile(IFormFile file)
+    private static async Task<string?> ValidateFileAsync(
+        IFormFile file,
+        CancellationToken cancellationToken)
     {
         if (file.Length == 0)
         {
@@ -170,7 +189,32 @@ public class ProductImageService(
             return "Only JPG, PNG, and WebP images are supported.";
         }
 
+        var header = new byte[12];
+        await using var stream = file.OpenReadStream();
+        var bytesRead = await stream.ReadAsync(header, cancellationToken);
+        if (!HasExpectedImageSignature(extension, header.AsSpan(0, bytesRead)))
+        {
+            return "The file content does not match its image extension.";
+        }
+
         return null;
+    }
+
+    internal static bool HasExpectedImageSignature(string extension, ReadOnlySpan<byte> header)
+    {
+        return extension.ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => header.Length >= 3
+                && header[0] == 0xFF
+                && header[1] == 0xD8
+                && header[2] == 0xFF,
+            ".png" => header.Length >= 8
+                && header[..8].SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            ".webp" => header.Length >= 12
+                && header[..4].SequenceEqual("RIFF"u8)
+                && header[8..12].SequenceEqual("WEBP"u8),
+            _ => false
+        };
     }
 
     private async Task<string> SaveFileAsync(IFormFile file, string fileName, CancellationToken cancellationToken)
@@ -208,7 +252,7 @@ public class ProductImageService(
             BucketName = options.BucketName,
             Key = objectKey,
             InputStream = stream,
-            ContentType = file.ContentType,
+            ContentType = GetContentType(fileName),
             AutoCloseStream = false
         }, cancellationToken);
 
@@ -235,6 +279,23 @@ public class ProductImageService(
         }
 
         DeleteLocalFile(imageUrl);
+    }
+
+    public async Task DeleteStoredFilesAsync(
+        IEnumerable<string> imageUrls,
+        CancellationToken cancellationToken)
+    {
+        foreach (var imageUrl in imageUrls)
+        {
+            try
+            {
+                await DeleteStoredFileAsync(imageUrl, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Failed to remove a product image from storage.");
+            }
+        }
     }
 
     private void DeleteLocalFile(string imageUrl)
@@ -322,11 +383,14 @@ public class ProductImageService(
         return string.IsNullOrWhiteSpace(prefix) ? fileName : $"{prefix}/{fileName}";
     }
 
-    private static bool IsValidObjectKey(string objectKey)
+    private bool IsAllowedProductObjectKey(string objectKey)
     {
+        var prefix = storageOptions.Value.ProductImagePrefix.Trim('/');
         return !string.IsNullOrWhiteSpace(objectKey)
             && !objectKey.Contains("..", StringComparison.Ordinal)
-            && !Path.IsPathRooted(objectKey);
+            && !objectKey.Contains('\\')
+            && !Path.IsPathRooted(objectKey)
+            && objectKey.StartsWith($"{prefix}/", StringComparison.Ordinal);
     }
 
     private static string GetContentType(string filePath)

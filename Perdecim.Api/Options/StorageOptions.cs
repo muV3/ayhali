@@ -12,7 +12,7 @@ public class StorageOptions
     public string ProductImagePrefix { get; set; } = "products";
 
     public bool UseS3 =>
-        Provider.Equals("S3", StringComparison.OrdinalIgnoreCase)
+        string.Equals(Provider, "S3", StringComparison.OrdinalIgnoreCase)
         && !string.IsNullOrWhiteSpace(BucketName)
         && !string.IsNullOrWhiteSpace(AccessKeyId)
         && !string.IsNullOrWhiteSpace(SecretAccessKey);

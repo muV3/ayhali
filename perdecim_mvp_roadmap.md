@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-Perdecim is a local-first curtain shop website for a curtain business in Zonguldak, Turkey. The MVP is a digital showroom and sales funnel: customers discover the shop, browse curtain models, filter products, view product details, and contact the shop through WhatsApp.
+Perdecim is a local-first curtain shop website for a curtain business in Zonguldak, Turkey. The MVP is a digital showroom and sales funnel: customers discover the shop, browse curtain models, filter products, view product details, and find the store's contact and location details.
 
 The system should stay payment-ready, but the MVP does not need cart, checkout, online payment, or order management.
 
@@ -20,7 +20,7 @@ The system should stay payment-ready, but the MVP does not need cart, checkout, 
 
 - React with Vite
 - Landing page plus filtered products page
-- WhatsApp inquiry links
+- Store contact and location details
 - Responsive premium showroom styling
 
 ## 3. Product Domain
@@ -62,7 +62,7 @@ Typical materials:
 3. Customer opens all models.
 4. Customer filters by category, size, color, style, material, discount, and stock.
 5. Customer opens product detail.
-6. Customer sends a WhatsApp inquiry with the product code.
+6. Customer uses the contact page to find the store's phone number, address, or directions.
 
 ## 5. Admin Workflow
 
