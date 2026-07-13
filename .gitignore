@@ -7,3 +7,13 @@ dist/
 *.log
 .vs/
 .tmp/
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+*.keystore
+secrets.json
+credentials.json
+Perdecim.Api/wwwroot/uploads/

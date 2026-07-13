@@ -47,6 +47,8 @@ public class BearerAuthenticationHandler(
                 ValidAudience = options.Audience,
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.Secret)),
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+                RequireSignedTokens = true,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(1),
                 RoleClaimType = ClaimTypes.Role

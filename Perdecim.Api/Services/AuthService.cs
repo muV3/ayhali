@@ -13,12 +13,17 @@ public class AuthService(
     {
         var email = dto.Email.Trim().ToLowerInvariant();
         var adminUser = await dbContext.AdminUsers
-            .AsNoTracking()
             .FirstOrDefaultAsync(user => user.Email == email, cancellationToken);
 
         if (adminUser is null || !passwordHashService.VerifyPassword(dto.Password, adminUser.PasswordHash))
         {
             return null;
+        }
+
+        if (passwordHashService.NeedsRehash(adminUser.PasswordHash))
+        {
+            adminUser.PasswordHash = passwordHashService.HashPassword(dto.Password);
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         var (token, expiresAtUtc) = jwtTokenService.CreateToken(adminUser);

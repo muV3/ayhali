@@ -1,6 +1,7 @@
 using Perdecim.Api.DTOs.Auth;
 using Perdecim.Api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Perdecim.Api.Controllers;
@@ -10,6 +11,7 @@ namespace Perdecim.Api.Controllers;
 public class AuthController(AuthService authService) : ControllerBase
 {
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto, CancellationToken cancellationToken)
     {

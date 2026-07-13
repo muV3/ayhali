@@ -39,7 +39,7 @@ public class AdminBootstrapper(
             });
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Seeded initial admin user {Email}.", email);
+            logger.LogInformation("Seeded the initial admin user. Remove the bootstrap password from deployment configuration.");
         }
         catch (Exception exception)
         {
