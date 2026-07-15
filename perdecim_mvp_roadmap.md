@@ -43,9 +43,7 @@ Useful filter groups:
 - Size
 - Style
 - Material
-- Discount status
 - Availability
-- Price sorting
 
 Typical materials:
 
@@ -60,7 +58,7 @@ Typical materials:
 1. Customer lands on the Perdecim landing page.
 2. Customer reviews new arrivals, best sellers, and featured product.
 3. Customer opens all models.
-4. Customer filters by category, size, color, style, material, discount, and stock.
+4. Customer filters by category, size, color, style, material, and stock.
 5. Customer opens product detail.
 6. Customer uses the contact page to find the store's phone number, address, or directions.
 
@@ -70,7 +68,7 @@ Typical materials:
 2. Admin creates or updates lookup values.
 3. Admin creates curtain products.
 4. Admin uploads product images.
-5. Admin marks products as featured, discounted, or unavailable.
+5. Admin marks products as featured or unavailable.
 
 ## 6. Frontend Direction
 
@@ -93,12 +91,11 @@ Required:
 - Landing page
 - Filtered products page
 - Product detail view
-- Campaigns view
 - Contact view
+- Unlinked admin dashboard for product, image, and lookup management
 
 Future:
 
-- Admin dashboard
 - SEO landing pages for curtain categories
 - Blog or guide pages for measuring and choosing curtains
 

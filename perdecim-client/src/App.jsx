@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import LandingPage from './LandingPage.jsx'
+import AdminPanel from './AdminPanel.jsx'
 import heroImg from './assets/curtain-showroom-hero.png'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
 
 const fallbackProducts = [
-  { id: 1, name: 'Keten Dokulu Bej Fon Perde', code: 'PRD-1024', price: 8500, discountPrice: 7200, isDiscounted: true, isAvailable: true, isFeatured: true, category: 'Fon Perde', colors: ['Bej', 'Krem'], sizes: ['260x270', '300x270'], style: 'Modern', material: 'Keten Dokulu Kumaş', description: 'Salon ve oturma alanları için sıcak, dökümlü ve sakin bir fon perde seçeneği.' },
-  { id: 2, name: 'Lacivert Blackout Perde', code: 'PRD-1180', price: 3200, discountPrice: null, isDiscounted: false, isAvailable: true, isFeatured: false, category: 'Blackout Perde', colors: ['Lacivert', 'Gri'], sizes: ['140x260', '200x260'], style: 'Minimal', material: 'Karartma Kumaş', description: 'Yatak odası ve medya alanları için ışığı kontrollü kesen tok dokulu perde.' },
-  { id: 3, name: 'Çocuk Odası Soft Tül Perde', code: 'PRD-1302', price: 4100, discountPrice: 3650, isDiscounted: true, isAvailable: false, isFeatured: true, category: 'Tül Perde', colors: ['Gri', 'Yeşil'], sizes: ['250x260', '300x260'], style: 'Minimal', material: 'Vual Tül', description: 'Çocuk odaları için ferah ışık geçişi sunan, yumuşak tonlu ve kolay uyum sağlayan tül perde.' },
+  { id: 1, name: 'Keten Dokulu Bej Fon Perde', code: 'PRD-1024', isAvailable: true, isFeatured: true, category: 'Fon Perde', colors: ['Bej', 'Krem'], sizes: ['260x270', '300x270'], style: 'Modern', material: 'Keten Dokulu Kumaş', description: 'Salon ve oturma alanları için sıcak, dökümlü ve sakin bir fon perde seçeneği.' },
+  { id: 2, name: 'Lacivert Blackout Perde', code: 'PRD-1180', isAvailable: true, isFeatured: false, category: 'Blackout Perde', colors: ['Lacivert', 'Gri'], sizes: ['140x260', '200x260'], style: 'Minimal', material: 'Karartma Kumaş', description: 'Yatak odası ve medya alanları için ışığı kontrollü kesen tok dokulu perde.' },
+  { id: 3, name: 'Çocuk Odası Soft Tül Perde', code: 'PRD-1302', isAvailable: false, isFeatured: true, category: 'Tül Perde', colors: ['Gri', 'Yeşil'], sizes: ['250x260', '300x260'], style: 'Minimal', material: 'Vual Tül', description: 'Çocuk odaları için ferah ışık geçişi sunan, yumuşak tonlu ve kolay uyum sağlayan tül perde.' },
 ]
 
 const fallbackAttributes = {
@@ -23,10 +24,6 @@ async function fetchJson(path) {
   const response = await fetch(`${API_BASE_URL}${path}`)
   if (!response.ok) throw new Error(`API request failed: ${response.status}`)
   return response.json()
-}
-
-function formatPrice(value) {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value)
 }
 
 function getMainImage(product) {
@@ -56,13 +53,15 @@ function runPageTransition(updatePage) {
   updatePage()
 }
 
-function LegacyCatalogApp({ onBackHome }) {
-  const [route, setRoute] = useState({ name: 'products' })
-  const [products, setProducts] = useState([])
+function LegacyCatalogApp({ initialProduct, onBackHome }) {
+  const [route, setRoute] = useState(initialProduct
+    ? { name: 'detail', productId: initialProduct.id, returnTo: 'landing' }
+    : { name: 'products' })
+  const [products, setProducts] = useState(initialProduct ? [initialProduct] : [])
   const [attributes, setAttributes] = useState(fallbackAttributes)
   const [isLoading, setIsLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ category: '', color: '', size: '', style: '', material: '', discounted: false, available: true, sort: 'featured' })
+  const [filters, setFilters] = useState({ category: '', color: '', size: '', style: '', material: '', available: true, sort: 'featured' })
 
   useEffect(() => {
     let isMounted = true
@@ -90,7 +89,9 @@ function LegacyCatalogApp({ onBackHome }) {
         })
       } catch {
         if (isMounted) {
-          setProducts(fallbackProducts)
+          setProducts(initialProduct && !fallbackProducts.some((product) => product.id === initialProduct.id)
+            ? [initialProduct, ...fallbackProducts]
+            : fallbackProducts)
           setAttributes(fallbackAttributes)
         }
       } finally {
@@ -102,7 +103,7 @@ function LegacyCatalogApp({ onBackHome }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [initialProduct])
 
   const visibleProducts = useMemo(() => {
     const search = query.trim().toLowerCase()
@@ -115,19 +116,16 @@ function LegacyCatalogApp({ onBackHome }) {
           (!filters.size || product.sizes?.includes(filters.size)) &&
           (!filters.style || product.style === filters.style) &&
           (!filters.material || product.material === filters.material) &&
-          (!filters.discounted || product.isDiscounted) &&
           (!filters.available || product.isAvailable)
       })
       .sort((a, b) => {
-        if (filters.sort === 'priceAsc') return a.price - b.price
-        if (filters.sort === 'priceDesc') return b.price - a.price
-        if (filters.sort === 'discounted') return Number(b.isDiscounted) - Number(a.isDiscounted)
+        if (filters.sort === 'nameAsc') return a.name.localeCompare(b.name, 'tr-TR')
+        if (filters.sort === 'nameDesc') return b.name.localeCompare(a.name, 'tr-TR')
         return Number(b.isFeatured) - Number(a.isFeatured)
       })
   }, [filters, products, query])
 
   const featuredProducts = visibleProducts.filter((product) => product.isFeatured).slice(0, 3)
-  const campaignProducts = products.filter((product) => product.isDiscounted)
   const selectedProduct = products.find((product) => product.id === route.productId)
 
   function navigate(nextRoute) {
@@ -135,6 +133,15 @@ function LegacyCatalogApp({ onBackHome }) {
       setRoute(nextRoute)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     })
+  }
+
+  function navigateBackFromDetail() {
+    if (route.returnTo === 'landing') {
+      onBackHome()
+      return
+    }
+
+    navigate({ name: route.returnTo ?? 'products' })
   }
 
   return (
@@ -147,7 +154,6 @@ function LegacyCatalogApp({ onBackHome }) {
         <nav aria-label="Ana menü">
           {[
             ['products', 'MODELLER'],
-            ['campaigns', 'KAMPANYALAR'],
             ['contact', 'İLETİŞİM'],
           ].map(([name, label]) => (
             <button className={route.name === name ? 'active' : ''} key={name} type="button" onClick={() => navigate({ name })}>
@@ -174,7 +180,7 @@ function LegacyCatalogApp({ onBackHome }) {
               <p>Öne çıkanlar</p>
               <h2>Mağazada en çok sorulan modeller</h2>
             </div>
-            <ProductGrid products={featuredProducts.length ? featuredProducts : visibleProducts.slice(0, 3)} onOpen={(product) => navigate({ name: 'detail', productId: product.id })} />
+            <ProductGrid products={featuredProducts.length ? featuredProducts : visibleProducts.slice(0, 3)} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'home' })} />
           </section>
           <section className="trust-band">
             <div><strong>Yerel mağaza</strong><span>Zonguldak'ta yüz yüze destek</span></div>
@@ -190,17 +196,9 @@ function LegacyCatalogApp({ onBackHome }) {
           <section className="catalog-results">
             <div className="section-heading inline">
               <div><p>{isLoading ? 'Yükleniyor' : `${visibleProducts.length} model`}</p><h2>Perde modelleri</h2></div>
-              <button className="button button-primary button-sm" type="button" onClick={() => setFilters({ ...filters, discounted: true })}>İNDİRİMLERİ GÖSTER</button>
             </div>
-            <ProductGrid products={visibleProducts} onOpen={(product) => navigate({ name: 'detail', productId: product.id })} />
+            <ProductGrid products={visibleProducts} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'products' })} />
           </section>
-        </main>
-      )}
-
-      {route.name === 'campaigns' && (
-        <main className="section page-section">
-          <div className="section-heading"><p>Kampanyalar</p><h2>İndirimdeki perdeler</h2></div>
-          <ProductGrid products={campaignProducts} onOpen={(product) => navigate({ name: 'detail', productId: product.id })} />
         </main>
       )}
 
@@ -208,11 +206,10 @@ function LegacyCatalogApp({ onBackHome }) {
         <main className="detail-layout">
           <div className="detail-media"><ProductArtwork product={selectedProduct} /></div>
           <section className="detail-content">
-            <button className="back-button button button-outline button-sm" type="button" onClick={() => navigate({ name: 'products' })}>GERİ</button>
+            <button className="back-button button button-outline button-sm" type="button" onClick={navigateBackFromDetail}>GERİ</button>
             <p className="product-code">{selectedProduct.code}</p>
             <h1>{selectedProduct.name}</h1>
             <p>{selectedProduct.description}</p>
-            <Price product={selectedProduct} />
             <dl className="spec-list">
               <div><dt>Kategori</dt><dd>{selectedProduct.category}</dd></div>
               <div><dt>Renkler</dt><dd>{selectedProduct.colors?.join(', ')}</dd></div>
@@ -227,20 +224,19 @@ function LegacyCatalogApp({ onBackHome }) {
         <main className="contact-page">
           <section>
             <p>İletişim</p>
-            <h1>Mağazaya gelmeden önce modeli seçin, ardından bizi ziyaret edin.</h1>
+            <aside className="contact-panel">
+              <strong>Perdecim Zonguldak</strong>
+              <span>Adres: Cumhuriyet Caddesi TK Mobilya Yanı, Zonguldak Merkez</span>
+              <span>E-posta:</span>
+              <span>Instagram: @halicimahmutay</span>
+              <span>Çalışma saatleri: 09:00 - 19:00</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=Zonguldak%20Perdecim" target="_blank" rel="noreferrer">Yol Tarifi Al</a>
+            </aside>
           </section>
-          <aside className="contact-panel">
-            <strong>Perdecim Zonguldak</strong>
-            <span>Adres: Zonguldak merkez</span>
-            <span>Telefon: 0 555 555 55 55</span>
-            <span>Instagram: @perdecim</span>
-            <span>Çalışma saatleri: 09:00 - 19:00</span>
-            <a href="https://www.google.com/maps/search/?api=1&query=Zonguldak%20Perdecim" target="_blank" rel="noreferrer">Yol Tarifi Al</a>
-          </aside>
         </main>
       )}
 
-      <footer><span>Perdecim</span><span>Zonguldak'ta perde modelleri, kampanyalar ve mağaza desteği.</span></footer>
+      <footer><span>Perdecim</span><span>Zonguldak'ta perde modelleri ve mağaza desteği.</span></footer>
     </div>
   )
 }
@@ -258,8 +254,7 @@ function CatalogFilters({ attributes, filters, query, setFilters, setQuery }) {
       <SelectFilter label="Ölçü" value={filters.size} options={attributes.sizes} onChange={(value) => updateFilter('size', value)} />
       <SelectFilter label="Stil" value={filters.style} options={attributes.styles} onChange={(value) => updateFilter('style', value)} />
       <SelectFilter label="Materyal" value={filters.material} options={attributes.materials} onChange={(value) => updateFilter('material', value)} />
-      <label>Sıralama<select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}><option value="featured">Öne çıkanlar</option><option value="priceAsc">Fiyat artan</option><option value="priceDesc">Fiyat azalan</option><option value="discounted">İndirimliler</option></select></label>
-      <label className="check-row"><input checked={filters.discounted} type="checkbox" onChange={(event) => updateFilter('discounted', event.target.checked)} />Sadece indirimdekiler</label>
+      <label>Sıralama<select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}><option value="featured">Öne çıkanlar</option><option value="nameAsc">İsim A-Z</option><option value="nameDesc">İsim Z-A</option></select></label>
       <label className="check-row"><input checked={filters.available} type="checkbox" onChange={(event) => updateFilter('available', event.target.checked)} />Sadece stoktakiler</label>
     </aside>
   )
@@ -282,7 +277,6 @@ function ProductGrid({ onOpen, products }) {
           <div className="product-body">
             <p className="product-code">{product.code}</p>
             <h3>{product.name}</h3>
-            <Price product={product} />
             <div className="tag-row"><span>{product.category}</span><span>{product.isAvailable ? 'Stokta' : 'Tükendi'}</span></div>
             <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>DETAY</button></div>
           </div>
@@ -292,26 +286,31 @@ function ProductGrid({ onOpen, products }) {
   )
 }
 
-function Price({ product }) {
-  return (
-    <div className="price-row">
-      {product.isDiscounted && product.discountPrice ? <><strong>{formatPrice(product.discountPrice)}</strong><span>{formatPrice(product.price)}</span></> : <strong>{formatPrice(product.price)}</strong>}
-    </div>
-  )
+function App() {
+  if (window.location.pathname === '/yonetim' || window.location.pathname.startsWith('/yonetim/')) {
+    return <AdminPanel />
+  }
+
+  return <PublicApp />
 }
 
-function App() {
-  const [page, setPage] = useState('landing')
+function PublicApp() {
+  const [page, setPage] = useState({ name: 'landing' })
 
   function navigatePage(nextPage) {
     runPageTransition(() => setPage(nextPage))
   }
 
-  if (page === 'products') {
-    return <LegacyCatalogApp onBackHome={() => navigatePage('landing')} />
+  if (page.name === 'products') {
+    return <LegacyCatalogApp initialProduct={page.product} onBackHome={() => navigatePage({ name: 'landing' })} />
   }
 
-  return <LandingPage onOpenProducts={() => navigatePage('products')} />
+  return (
+    <LandingPage
+      onOpenProduct={(product) => navigatePage({ name: 'products', product })}
+      onOpenProducts={() => navigatePage({ name: 'products' })}
+    />
+  )
 }
 
 export default App

@@ -11,9 +11,6 @@ public class ProductQueryParams
     public int? SizeId { get; set; }
     public int? StyleId { get; set; }
     public int? MaterialId { get; set; }
-    public decimal? MinPrice { get; set; }
-    public decimal? MaxPrice { get; set; }
-    public bool? IsDiscounted { get; set; }
     public bool? IsAvailable { get; set; }
     public bool? IsFeatured { get; set; }
     public string? Search { get; set; }

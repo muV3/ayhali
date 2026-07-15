@@ -8,9 +8,6 @@ const fallbackProducts = [
     id: 1,
     name: 'Keten Dokulu Bej Fon Perde',
     code: 'PRD-1024',
-    price: 8500,
-    discountPrice: 7200,
-    isDiscounted: true,
     isAvailable: true,
     isFeatured: true,
     category: 'Fon Perde',
@@ -24,9 +21,6 @@ const fallbackProducts = [
     id: 2,
     name: 'Lacivert Blackout Perde',
     code: 'PRD-1180',
-    price: 3200,
-    discountPrice: null,
-    isDiscounted: false,
     isAvailable: true,
     isFeatured: false,
     category: 'Blackout Perde',
@@ -40,9 +34,6 @@ const fallbackProducts = [
     id: 3,
     name: 'Çocuk Odası Soft Tül Perde',
     code: 'PRD-1302',
-    price: 4100,
-    discountPrice: 3650,
-    isDiscounted: true,
     isAvailable: true,
     isFeatured: true,
     category: 'Tül Perde',
@@ -56,9 +47,6 @@ const fallbackProducts = [
     id: 4,
     name: 'İnci Dokulu Krem Zebra Perde',
     code: 'PRD-1416',
-    price: 9600,
-    discountPrice: null,
-    isDiscounted: false,
     isAvailable: true,
     isFeatured: true,
     category: 'Zebra Perde',
@@ -75,14 +63,6 @@ async function fetchProducts() {
   if (!response.ok) throw new Error(`API request failed: ${response.status}`)
   const result = await response.json()
   return result.items ?? []
-}
-
-function formatPrice(value) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 function getMainImage(product) {
@@ -104,7 +84,7 @@ function ProductImage({ product }) {
   )
 }
 
-function LandingPage({ onOpenProducts }) {
+function LandingPage({ onOpenProduct, onOpenProducts }) {
   const [products, setProducts] = useState(fallbackProducts)
 
   useEffect(() => {
@@ -130,7 +110,7 @@ function LandingPage({ onOpenProducts }) {
 
   const newArrivals = useMemo(() => products.slice(0, 3), [products])
   const bestSellers = useMemo(() => {
-    const preferred = products.filter((product) => product.isFeatured || product.isDiscounted)
+    const preferred = products.filter((product) => product.isFeatured)
     return (preferred.length ? preferred : products).slice(0, 3)
   }, [products])
   const featuredProduct = products.find((product) => product.isFeatured) ?? products[0]
@@ -167,6 +147,7 @@ function LandingPage({ onOpenProducts }) {
           eyebrow="Yeni Gelenler"
           title="Showroom'a yeni eklenen seçkiler"
           products={newArrivals}
+          onOpenProduct={onOpenProduct}
         />
 
         <ProductSection
@@ -175,6 +156,7 @@ function LandingPage({ onOpenProducts }) {
           title="En çok ilgi gören modeller"
           products={bestSellers}
           tone="stone"
+          onOpenProduct={onOpenProduct}
         />
 
         {featuredProduct && (
@@ -200,9 +182,6 @@ function LandingPage({ onOpenProducts }) {
                   <dd>{featuredProduct.material || 'Premium dokuma'}</dd>
                 </div>
               </dl>
-              <div className="featured-product-actions">
-                <Price product={featuredProduct} />
-              </div>
             </div>
           </section>
         )}
@@ -220,7 +199,7 @@ function LandingPage({ onOpenProducts }) {
   )
 }
 
-function ProductSection({ eyebrow, id, products, title, tone = 'light' }) {
+function ProductSection({ eyebrow, id, onOpenProduct, products, title, tone = 'light' }) {
   return (
     <section id={id} className={`landing-section landing-section-${tone}`}>
       <div className="landing-section-heading reveal-on-scroll">
@@ -229,16 +208,22 @@ function ProductSection({ eyebrow, id, products, title, tone = 'light' }) {
       </div>
       <div className="landing-product-grid">
         {products.map((product, index) => (
-          <ProductCard index={index} key={product.id} product={product} />
+          <ProductCard index={index} key={product.id} onOpen={onOpenProduct} product={product} />
         ))}
       </div>
     </section>
   )
 }
 
-function ProductCard({ index, product }) {
+function ProductCard({ index, onOpen, product }) {
   return (
     <article className="landing-product-card reveal-on-scroll" style={{ transitionDelay: `${index * 70}ms` }}>
+      <button
+        className="landing-product-card-action"
+        type="button"
+        onClick={() => onOpen(product)}
+        aria-label={`${product.name} detaylarını aç`}
+      />
       <div className="landing-product-image">
         <ProductImage product={product} />
       </div>
@@ -249,24 +234,8 @@ function ProductCard({ index, product }) {
           <span>{product.category}</span>
           <span>{product.isAvailable ? 'Stokta' : 'Siparişle'}</span>
         </div>
-        <Price product={product} />
       </div>
     </article>
-  )
-}
-
-function Price({ product }) {
-  return (
-    <div className="landing-price">
-      {product.isDiscounted && product.discountPrice ? (
-        <>
-          <strong>{formatPrice(product.discountPrice)}</strong>
-          <span>{formatPrice(product.price)}</span>
-        </>
-      ) : (
-        <strong>{formatPrice(product.price)}</strong>
-      )}
-    </div>
   )
 }
 

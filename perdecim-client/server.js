@@ -45,6 +45,11 @@ function sendFile(request, response, filePath) {
 const server = createServer(async (request, response) => {
   try {
     setSecurityHeaders(response)
+    const pathname = new URL(request.url ?? '/', `http://localhost:${port}`).pathname
+    if (pathname === '/yonetim' || pathname.startsWith('/yonetim/')) {
+      response.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive')
+      response.setHeader('Cache-Control', 'no-store')
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       response.statusCode = 405
       response.setHeader('Allow', 'GET, HEAD')

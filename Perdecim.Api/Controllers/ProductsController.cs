@@ -100,6 +100,21 @@ public class ProductsController(
     }
 
     [Authorize(Roles = "Admin")]
+    [HttpPut("{productId:int}/images/{imageId:int}/main")]
+    public async Task<IActionResult> SetMainProductImage(
+        int productId,
+        int imageId,
+        CancellationToken cancellationToken)
+    {
+        var updated = await productImageService.SetMainImageAsync(
+            productId,
+            imageId,
+            cancellationToken);
+
+        return updated ? NoContent() : NotFound();
+    }
+
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{productId:int}/images/{imageId:int}")]
     public async Task<IActionResult> DeleteProductImage(
         int productId,

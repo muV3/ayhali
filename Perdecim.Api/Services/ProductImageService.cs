@@ -169,6 +169,30 @@ public class ProductImageService(
         return (true, false);
     }
 
+    public async Task<bool> SetMainImageAsync(
+        int productId,
+        int imageId,
+        CancellationToken cancellationToken)
+    {
+        var images = await dbContext.ProductImages
+            .Where(image => image.ProductId == productId)
+            .ToListAsync(cancellationToken);
+
+        var selectedImage = images.FirstOrDefault(image => image.Id == imageId);
+        if (selectedImage is null)
+        {
+            return false;
+        }
+
+        foreach (var image in images)
+        {
+            image.IsMainImage = image.Id == imageId;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private static async Task<string?> ValidateFileAsync(
         IFormFile file,
         CancellationToken cancellationToken)

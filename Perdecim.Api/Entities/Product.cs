@@ -9,9 +9,6 @@ public class Product
     public int CategoryId { get; set; }
     public int? StyleId { get; set; }
     public int? MaterialId { get; set; }
-    public decimal Price { get; set; }
-    public decimal? DiscountPrice { get; set; }
-    public bool IsDiscounted { get; set; }
     public bool IsAvailable { get; set; } = true;
     public bool IsFeatured { get; set; }
     public DateTime CreatedAt { get; set; }
