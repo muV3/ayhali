@@ -36,8 +36,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Property(product => product.Name).HasMaxLength(200).IsRequired();
             entity.Property(product => product.Code).HasMaxLength(100).IsRequired();
-            entity.Property(product => product.Price).HasPrecision(18, 2);
-            entity.Property(product => product.DiscountPrice).HasPrecision(18, 2);
             entity.Property(product => product.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(product => product.IsAvailable).HasDefaultValue(true);
 

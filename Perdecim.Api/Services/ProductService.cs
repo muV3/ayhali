@@ -24,9 +24,6 @@ public class ProductService(AppDbContext dbContext)
                 Id = product.Id,
                 Name = product.Name,
                 Code = product.Code,
-                Price = product.Price,
-                DiscountPrice = product.DiscountPrice,
-                IsDiscounted = product.IsDiscounted,
                 IsAvailable = product.IsAvailable,
                 IsFeatured = product.IsFeatured,
                 MainImageUrl = product.Images
@@ -66,9 +63,6 @@ public class ProductService(AppDbContext dbContext)
                 Name = product.Name,
                 Code = product.Code,
                 Description = product.Description,
-                Price = product.Price,
-                DiscountPrice = product.DiscountPrice,
-                IsDiscounted = product.IsDiscounted,
                 IsAvailable = product.IsAvailable,
                 IsFeatured = product.IsFeatured,
                 Category = product.Category == null ? string.Empty : product.Category.Name,
@@ -119,9 +113,6 @@ public class ProductService(AppDbContext dbContext)
             CategoryId = dto.CategoryId,
             StyleId = dto.StyleId,
             MaterialId = dto.MaterialId,
-            Price = dto.Price,
-            DiscountPrice = dto.DiscountPrice,
-            IsDiscounted = dto.IsDiscounted,
             IsAvailable = dto.IsAvailable,
             IsFeatured = dto.IsFeatured,
             CreatedAt = DateTime.UtcNow,
@@ -169,9 +160,6 @@ public class ProductService(AppDbContext dbContext)
         product.CategoryId = dto.CategoryId;
         product.StyleId = dto.StyleId;
         product.MaterialId = dto.MaterialId;
-        product.Price = dto.Price;
-        product.DiscountPrice = dto.DiscountPrice;
-        product.IsDiscounted = dto.IsDiscounted;
         product.IsAvailable = dto.IsAvailable;
         product.IsFeatured = dto.IsFeatured;
         product.UpdatedAt = DateTime.UtcNow;
@@ -246,21 +234,6 @@ public class ProductService(AppDbContext dbContext)
             query = query.Where(product => product.MaterialId == queryParams.MaterialId);
         }
 
-        if (queryParams.MinPrice is not null)
-        {
-            query = query.Where(product => product.Price >= queryParams.MinPrice);
-        }
-
-        if (queryParams.MaxPrice is not null)
-        {
-            query = query.Where(product => product.Price <= queryParams.MaxPrice);
-        }
-
-        if (queryParams.IsDiscounted is not null)
-        {
-            query = query.Where(product => product.IsDiscounted == queryParams.IsDiscounted);
-        }
-
         if (queryParams.IsAvailable is not null)
         {
             query = query.Where(product => product.IsAvailable == queryParams.IsAvailable);
@@ -287,9 +260,6 @@ public class ProductService(AppDbContext dbContext)
     {
         return sortBy?.Trim().ToLowerInvariant() switch
         {
-            "priceasc" => query.OrderBy(product => product.Price),
-            "pricedesc" => query.OrderByDescending(product => product.Price),
-            "discounted" => query.OrderByDescending(product => product.IsDiscounted).ThenByDescending(product => product.CreatedAt),
             "featured" => query.OrderByDescending(product => product.IsFeatured).ThenByDescending(product => product.CreatedAt),
             _ => query.OrderByDescending(product => product.CreatedAt)
         };

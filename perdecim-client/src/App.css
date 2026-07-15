@@ -185,6 +185,17 @@
 
 .app-shell {
   min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell > main {
+  flex: 1 0 auto;
+}
+
+.app-shell > footer {
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .site-header {
@@ -243,7 +254,6 @@
 .card-actions button,
 .card-actions a,
 .primary-link,
-.catalog-results .section-heading button,
 .back-button {
   min-height: 38px;
   border: 1px solid transparent;
@@ -342,8 +352,7 @@
 }
 
 .hero-actions a,
-.card-actions a,
-.catalog-results .section-heading button {
+.card-actions a {
   display: inline-flex;
   align-items: center;
   color: var(--ink);
@@ -351,7 +360,6 @@
 }
 
 .section,
-.page-section,
 .catalog-layout,
 .detail-layout,
 .contact-page {
@@ -430,22 +438,6 @@
   color: var(--ink);
   font-size: 20px;
   line-height: 1.15;
-}
-
-.price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.price-row strong {
-  color: var(--green);
-  font-size: 20px;
-}
-
-.price-row span {
-  color: var(--muted);
-  text-decoration: line-through;
 }
 
 .tag-row {
@@ -600,12 +592,13 @@
 
 .contact-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: minmax(280px, 380px);
   gap: 32px;
   align-items: start;
 }
 
 .contact-page section {
+  width: 100%;
   display: grid;
   gap: 22px;
 }
@@ -739,9 +732,20 @@ footer span:first-child {
     --button-outline-text: var(--text);
     --button-outline-border: var(--border);
     min-height: 100svh;
+    display: flex;
+    flex-direction: column;
     color: var(--body);
     background: var(--page);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.landing-page > main {
+  flex: 1 0 auto;
+}
+
+.landing-page > .landing-footer {
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .landing-page a {
@@ -873,8 +877,7 @@ footer span:first-child {
   line-height: 1.35;
 }
 
-.landing-hero-actions,
-.featured-product-actions {
+.landing-hero-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -920,6 +923,7 @@ footer span:first-child {
 }
 
 .landing-product-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -979,22 +983,6 @@ footer span:first-child {
   padding: 5px 9px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.landing-price {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.landing-price strong {
-  color: var(--text);
-  font-size: 20px;
-}
-
-.landing-price span {
-  color: var(--muted);
-  text-decoration: line-through;
 }
 
 .featured-product-section {
@@ -1260,7 +1248,6 @@ footer span:first-child {
 
 .app-shell .site-header nav button,
 .app-shell .header-action,
-.app-shell .catalog-results .section-heading button,
 .app-shell .card-actions button,
 .app-shell .card-actions a,
 .app-shell .primary-link,
@@ -1351,6 +1338,23 @@ footer span:first-child {
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
+.landing-product-card-action {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.landing-product-card-action:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: -3px;
+}
+
 .app-shell .product-card:hover {
   border-color: rgba(255, 195, 8, 0.36);
   box-shadow: 0 18px 42px rgba(30, 41, 59, 0.1);
@@ -1383,12 +1387,6 @@ footer span:first-child {
   line-height: 1.15;
 }
 
-.app-shell .price-row strong {
-  color: var(--text);
-  font-size: 20px;
-}
-
-.app-shell .price-row span,
 .app-shell .tag-row span {
   color: var(--muted);
 }
@@ -1406,8 +1404,7 @@ footer span:first-child {
 }
 
 .app-shell .detail-layout,
-.app-shell .contact-page,
-.app-shell .page-section {
+.app-shell .contact-page {
   padding: clamp(32px, 5vw, 72px) clamp(20px, 5vw, 72px);
 }
 
@@ -1439,6 +1436,10 @@ footer span:first-child {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 18px 42px rgba(30, 41, 59, 0.06);
+}
+
+.app-shell .contact-page > section > p {
+  color: var(--primary);
 }
 
 .app-shell .contact-panel strong {

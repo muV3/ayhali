@@ -20,11 +20,6 @@ public class CreateProductDto
     public int? StyleId { get; set; }
     public int? MaterialId { get; set; }
 
-    [Range(0.01, double.MaxValue)]
-    public decimal Price { get; set; }
-
-    public decimal? DiscountPrice { get; set; }
-    public bool IsDiscounted { get; set; }
     public bool IsAvailable { get; set; } = true;
     public bool IsFeatured { get; set; }
     public IReadOnlyList<int> ColorIds { get; set; } = [];
