@@ -83,6 +83,11 @@ builder.Services.AddOptions<StorageOptions>()
             && !options.ProductImagePrefix.Contains("..", StringComparison.Ordinal)
             && !options.ProductImagePrefix.Contains('\\'),
         "Storage:ProductImagePrefix must be a non-empty safe path prefix.")
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.SampleBookImagePrefix)
+            && !options.SampleBookImagePrefix.Contains("..", StringComparison.Ordinal)
+            && !options.SampleBookImagePrefix.Contains('\\'),
+        "Storage:SampleBookImagePrefix must be a non-empty safe path prefix.")
     .ValidateOnStart();
 builder.Services.AddRateLimiter(options =>
 {
@@ -109,6 +114,7 @@ builder.Services.AddScoped<PasswordHashService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<LookupService>();
 builder.Services.AddScoped<ProductImageService>();
+builder.Services.AddScoped<FabricSampleBookService>();
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

@@ -1,5 +1,6 @@
 using Perdecim.Api.Data;
 using Perdecim.Api.DTOs;
+using Perdecim.Api.DTOs.FabricSampleBooks;
 using Perdecim.Api.DTOs.Products;
 using Perdecim.Api.Entities;
 using Perdecim.Api.Helpers;
@@ -32,6 +33,8 @@ public class ProductService(AppDbContext dbContext)
                     .Select(image => image.ImageUrl)
                     .FirstOrDefault(),
                 Category = product.Category == null ? string.Empty : product.Category.Name,
+                FabricSampleBookId = product.FabricSampleBookId,
+                FabricSampleBookName = product.FabricSampleBook == null ? string.Empty : product.FabricSampleBook.Name,
                 Colors = product.ProductColors
                     .OrderBy(productColor => productColor.Color!.Name)
                     .Select(productColor => productColor.Color!.Name)
@@ -54,7 +57,7 @@ public class ProductService(AppDbContext dbContext)
 
     public async Task<ProductDetailDto?> GetProductByIdAsync(int id, CancellationToken cancellationToken)
     {
-        return await dbContext.Products
+        var productDetail = await dbContext.Products
             .AsNoTracking()
             .Where(product => product.Id == id)
             .Select(product => new ProductDetailDto
@@ -68,6 +71,13 @@ public class ProductService(AppDbContext dbContext)
                 Category = product.Category == null ? string.Empty : product.Category.Name,
                 Style = product.Style == null ? null : product.Style.Name,
                 Material = product.Material == null ? null : product.Material.Name,
+                FabricSampleBook = product.FabricSampleBook == null ? null : new FabricSampleBookDto
+                {
+                    Id = product.FabricSampleBook.Id,
+                    Name = product.FabricSampleBook.Name,
+                    ImageUrl = product.FabricSampleBook.ImageUrl,
+                    ProductCount = product.FabricSampleBook.Products.Count
+                },
                 Colors = product.ProductColors
                     .OrderBy(productColor => productColor.Color!.Name)
                     .Select(productColor => productColor.Color!.Name)
@@ -93,13 +103,52 @@ public class ProductService(AppDbContext dbContext)
                     .ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (productDetail?.FabricSampleBook is null)
+        {
+            return productDetail;
+        }
+
+        productDetail.SuggestedProducts = await dbContext.Products
+            .AsNoTracking()
+            .Where(product => product.FabricSampleBookId == productDetail.FabricSampleBook.Id && product.Id != id)
+            .OrderByDescending(product => product.IsFeatured)
+            .ThenByDescending(product => product.CreatedAt)
+            .Take(4)
+            .Select(product => new ProductListDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Code = product.Code,
+                IsAvailable = product.IsAvailable,
+                IsFeatured = product.IsFeatured,
+                MainImageUrl = product.Images
+                    .OrderByDescending(image => image.IsMainImage)
+                    .ThenBy(image => image.DisplayOrder)
+                    .Select(image => image.ImageUrl)
+                    .FirstOrDefault(),
+                Category = product.Category == null ? string.Empty : product.Category.Name,
+                FabricSampleBookId = product.FabricSampleBookId,
+                FabricSampleBookName = product.FabricSampleBook == null ? string.Empty : product.FabricSampleBook.Name,
+                Colors = product.ProductColors
+                    .OrderBy(productColor => productColor.Color!.Name)
+                    .Select(productColor => productColor.Color!.Name)
+                    .ToList(),
+                Sizes = product.ProductSizes
+                    .OrderBy(productSize => productSize.Size!.Name)
+                    .Select(productSize => productSize.Size!.Name)
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return productDetail;
     }
 
     public async Task<(ProductDetailDto? Product, string? Error)> CreateProductAsync(
         CreateProductDto dto,
         CancellationToken cancellationToken)
     {
-        var validationError = await ValidateProductReferencesAsync(dto.Code, null, dto.CategoryId, dto.StyleId, dto.MaterialId, dto.ColorIds, dto.Sizes, cancellationToken);
+        var validationError = await ValidateProductReferencesAsync(dto.Code, null, dto.CategoryId, dto.FabricSampleBookId, dto.StyleId, dto.MaterialId, dto.ColorIds, dto.Sizes, cancellationToken);
         if (validationError is not null)
         {
             return (null, validationError);
@@ -111,6 +160,7 @@ public class ProductService(AppDbContext dbContext)
             Code = dto.Code.Trim(),
             Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
             CategoryId = dto.CategoryId,
+            FabricSampleBookId = dto.FabricSampleBookId,
             StyleId = dto.StyleId,
             MaterialId = dto.MaterialId,
             IsAvailable = dto.IsAvailable,
@@ -148,7 +198,7 @@ public class ProductService(AppDbContext dbContext)
             return (null, null);
         }
 
-        var validationError = await ValidateProductReferencesAsync(dto.Code, id, dto.CategoryId, dto.StyleId, dto.MaterialId, dto.ColorIds, dto.Sizes, cancellationToken);
+        var validationError = await ValidateProductReferencesAsync(dto.Code, id, dto.CategoryId, dto.FabricSampleBookId, dto.StyleId, dto.MaterialId, dto.ColorIds, dto.Sizes, cancellationToken);
         if (validationError is not null)
         {
             return (null, validationError);
@@ -158,6 +208,7 @@ public class ProductService(AppDbContext dbContext)
         product.Code = dto.Code.Trim();
         product.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
         product.CategoryId = dto.CategoryId;
+        product.FabricSampleBookId = dto.FabricSampleBookId;
         product.StyleId = dto.StyleId;
         product.MaterialId = dto.MaterialId;
         product.IsAvailable = dto.IsAvailable;
@@ -250,6 +301,7 @@ public class ProductService(AppDbContext dbContext)
             query = query.Where(product =>
                 product.Name.Contains(search) ||
                 product.Code.Contains(search) ||
+                (product.FabricSampleBook != null && product.FabricSampleBook.Name.Contains(search)) ||
                 (product.Description != null && product.Description.Contains(search)));
         }
 
@@ -269,6 +321,7 @@ public class ProductService(AppDbContext dbContext)
         string code,
         int? existingProductId,
         int categoryId,
+        int fabricSampleBookId,
         int? styleId,
         int? materialId,
         IReadOnlyList<int> colorIds,
@@ -288,6 +341,11 @@ public class ProductService(AppDbContext dbContext)
         if (!await dbContext.Categories.AnyAsync(category => category.Id == categoryId, cancellationToken))
         {
             return "Category does not exist.";
+        }
+
+        if (!await dbContext.FabricSampleBooks.AnyAsync(sampleBook => sampleBook.Id == fabricSampleBookId, cancellationToken))
+        {
+            return "Seçilen kartela bulunamadı.";
         }
 
         if (styleId is not null && !await dbContext.Styles.AnyAsync(style => style.Id == styleId, cancellationToken))

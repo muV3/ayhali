@@ -1,3 +1,5 @@
+using Perdecim.Api.DTOs.FabricSampleBooks;
+
 namespace Perdecim.Api.DTOs.Products;
 
 public class ProductDetailDto
@@ -14,5 +16,7 @@ public class ProductDetailDto
     public IReadOnlyList<string> Colors { get; set; } = [];
     public IReadOnlyList<ProductSizeDto> Sizes { get; set; } = [];
     public IReadOnlyList<ProductImageDto> Images { get; set; } = [];
+    public FabricSampleBookDto? FabricSampleBook { get; set; }
+    public IReadOnlyList<ProductListDto> SuggestedProducts { get; set; } = [];
 }
 

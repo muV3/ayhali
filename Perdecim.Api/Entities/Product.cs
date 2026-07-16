@@ -7,6 +7,7 @@ public class Product
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int CategoryId { get; set; }
+    public int FabricSampleBookId { get; set; } = 1;
     public int? StyleId { get; set; }
     public int? MaterialId { get; set; }
     public bool IsAvailable { get; set; } = true;
@@ -15,6 +16,7 @@ public class Product
     public DateTime? UpdatedAt { get; set; }
 
     public Category? Category { get; set; }
+    public FabricSampleBook? FabricSampleBook { get; set; }
     public Style? Style { get; set; }
     public Material? Material { get; set; }
     public ICollection<ProductImage> Images { get; set; } = [];

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiRequest, resolveImageUrl } from './adminApi.js'
+import { getResponsiveImageAttributes } from './responsiveImages.js'
 import './AdminPanel.css'
 
 const SESSION_KEY = 'perdecim-admin-session'
@@ -39,6 +40,7 @@ function getInitialForm() {
     code: '',
     description: '',
     categoryId: '',
+    fabricSampleBookId: '',
     styleId: '',
     materialId: '',
     isAvailable: true,
@@ -172,6 +174,8 @@ function AdminWorkspace({ session, onLogout }) {
   const [section, setSection] = useState('products')
   const [lookups, setLookups] = useState(emptyLookups)
   const [lookupsLoading, setLookupsLoading] = useState(true)
+  const [sampleBooks, setSampleBooks] = useState([])
+  const [sampleBooksLoading, setSampleBooksLoading] = useState(true)
   const [toast, setToast] = useState(null)
 
   const request = useMemo(() => (path, options = {}) => apiRequest(path, {
@@ -196,9 +200,24 @@ function AdminWorkspace({ session, onLogout }) {
     }
   }, [request, showToast])
 
+  const loadSampleBooks = useCallback(async () => {
+    setSampleBooksLoading(true)
+    try {
+      setSampleBooks(await request('/api/fabric-sample-books'))
+    } catch (error) {
+      showToast(error.message, 'error')
+    } finally {
+      setSampleBooksLoading(false)
+    }
+  }, [request, showToast])
+
   useEffect(() => {
     loadLookups()
   }, [loadLookups])
+
+  useEffect(() => {
+    loadSampleBooks()
+  }, [loadSampleBooks])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -222,6 +241,10 @@ function AdminWorkspace({ session, onLogout }) {
             <span className="admin-nav-symbol" aria-hidden="true">◇</span>
             Özellikler
           </button>
+          <button className={section === 'sample-books' ? 'active' : ''} onClick={() => setSection('sample-books')} type="button">
+            <span className="admin-nav-symbol" aria-hidden="true">▤</span>
+            Kartelalar
+          </button>
         </nav>
         <div className="admin-sidebar-footer">
           <span className="admin-avatar">{session.email.slice(0, 1).toUpperCase()}</span>
@@ -237,6 +260,7 @@ function AdminWorkspace({ session, onLogout }) {
         </header>
         <div className="admin-mobile-nav" role="navigation" aria-label="Yönetim menüsü">
           <button className={section === 'products' ? 'active' : ''} onClick={() => setSection('products')} type="button">Ürünler</button>
+          <button className={section === 'sample-books' ? 'active' : ''} onClick={() => setSection('sample-books')} type="button">Kartelalar</button>
           <button className={section === 'attributes' ? 'active' : ''} onClick={() => setSection('attributes')} type="button">Özellikler</button>
         </div>
 
@@ -244,6 +268,17 @@ function AdminWorkspace({ session, onLogout }) {
           <ProductsManager
             lookups={lookups}
             lookupsLoading={lookupsLoading}
+            sampleBooks={sampleBooks}
+            sampleBooksLoading={sampleBooksLoading}
+            request={request}
+            showToast={showToast}
+          />
+        )}
+        {section === 'sample-books' && (
+          <SampleBooksManager
+            sampleBooks={sampleBooks}
+            isLoading={sampleBooksLoading}
+            refreshSampleBooks={loadSampleBooks}
             request={request}
             showToast={showToast}
           />
@@ -263,7 +298,7 @@ function AdminWorkspace({ session, onLogout }) {
   )
 }
 
-function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
+function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoading, request, showToast }) {
   const [products, setProducts] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -291,7 +326,7 @@ function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
   const visibleProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('tr-TR')
     return products.filter((product) => {
-      const matchesSearch = !normalizedSearch || [product.name, product.code, product.category]
+      const matchesSearch = !normalizedSearch || [product.name, product.code, product.category, product.fabricSampleBookName]
         .filter(Boolean)
         .some((value) => value.toLocaleLowerCase('tr-TR').includes(normalizedSearch))
       const matchesAvailability = availability === 'all'
@@ -341,7 +376,7 @@ function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
         ) : visibleProducts.length ? (
           <div className="admin-product-table-wrap">
             <table className="admin-product-table">
-              <thead><tr><th>Ürün</th><th>Kategori</th><th>Durum</th><th><span className="sr-only">İşlemler</span></th></tr></thead>
+              <thead><tr><th>Ürün</th><th>Kartela</th><th>Kategori</th><th>Durum</th><th><span className="sr-only">İşlemler</span></th></tr></thead>
               <tbody>
                 {visibleProducts.map((product) => (
                   <tr key={product.id}>
@@ -351,6 +386,7 @@ function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
                         <span><strong>{product.name}</strong><small>{product.code}</small></span>
                       </div>
                     </td>
+                    <td data-label="Kartela">{product.fabricSampleBookName}</td>
                     <td data-label="Kategori">{product.category}</td>
                     <td data-label="Durum"><span className={`admin-status ${product.isAvailable ? 'available' : 'unavailable'}`}>{product.isAvailable ? 'Satışta' : 'Stokta yok'}</span>{product.isFeatured && <span className="admin-featured">Öne çıkan</span>}</td>
                     <td>
@@ -379,6 +415,8 @@ function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
           product={editorProduct}
           lookups={lookups}
           lookupsLoading={lookupsLoading}
+          sampleBooks={sampleBooks}
+          sampleBooksLoading={sampleBooksLoading}
           request={request}
           onClose={() => setEditorProduct(undefined)}
           onSaved={async (message) => {
@@ -395,7 +433,7 @@ function ProductsManager({ lookups, lookupsLoading, request, showToast }) {
 
 function ProductThumbnail({ product }) {
   return product.mainImageUrl
-    ? <img className="admin-product-thumb" src={resolveImageUrl(product.mainImageUrl)} alt="" />
+    ? <img className="admin-product-thumb" src={resolveImageUrl(product.mainImageSmallUrl ?? product.mainImageUrl)} alt="" width="54" height="54" loading="lazy" decoding="async" />
     : <span className="admin-product-thumb admin-product-placeholder" aria-hidden="true">P</span>
 }
 
@@ -403,7 +441,7 @@ function LoadingRows() {
   return <div className="admin-loading-list" aria-label="Ürünler yükleniyor">{[1, 2, 3, 4].map((item) => <span key={item} />)}</div>
 }
 
-function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onSaved, showToast }) {
+function ProductEditor({ product, lookups, lookupsLoading, sampleBooks, sampleBooksLoading, request, onClose, onSaved, showToast }) {
   const [form, setForm] = useState(getInitialForm)
   const [detail, setDetail] = useState(null)
   const [queuedImages, setQueuedImages] = useState([])
@@ -438,6 +476,7 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
           code: result.code,
           description: result.description ?? '',
           categoryId: String(lookups.categories.find((item) => item.name === result.category)?.id ?? ''),
+          fabricSampleBookId: String(result.fabricSampleBook?.id ?? ''),
           styleId: String(lookups.styles.find((item) => item.name === result.style)?.id ?? ''),
           materialId: String(lookups.materials.find((item) => item.name === result.material)?.id ?? ''),
           isAvailable: result.isAvailable,
@@ -513,7 +552,7 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
   }
 
   function validateForm() {
-    if (!form.name.trim() || !form.code.trim() || !form.categoryId) return 'Ad, ürün kodu ve kategori alanları zorunludur.'
+    if (!form.name.trim() || !form.code.trim() || !form.categoryId || !form.fabricSampleBookId) return 'Ad, ürün kodu, kategori ve kartela alanları zorunludur.'
     return ''
   }
 
@@ -533,6 +572,7 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
         code: form.code.trim(),
         description: form.description.trim() || null,
         categoryId: Number(form.categoryId),
+        fabricSampleBookId: Number(form.fabricSampleBookId),
         styleId: form.styleId ? Number(form.styleId) : null,
         materialId: form.materialId ? Number(form.materialId) : null,
         isAvailable: form.isAvailable,
@@ -576,7 +616,7 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
           <button className="admin-close-button" type="button" onClick={onClose} aria-label="Pencereyi kapat">×</button>
         </header>
 
-        {isLoading || lookupsLoading ? <div className="admin-editor-loading">Ürün bilgileri hazırlanıyor…</div> : (
+        {isLoading || lookupsLoading || sampleBooksLoading ? <div className="admin-editor-loading">Ürün bilgileri hazırlanıyor…</div> : (
           <form onSubmit={handleSubmit}>
             <div className="admin-editor-body">
               {formError && <div className="admin-alert admin-alert-error admin-form-alert" role="alert">{formError}</div>}
@@ -586,6 +626,7 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
                   <label className="admin-field admin-field-span-2"><span>Ürün adı *</span><input value={form.name} onChange={(event) => updateField('name', event.target.value)} placeholder="Örn. Keten dokulu bej fon perde" required /></label>
                   <label className="admin-field"><span>Ürün kodu *</span><input value={form.code} onChange={(event) => updateField('code', event.target.value)} placeholder="PRD-1024" required /></label>
                   <label className="admin-field"><span>Kategori *</span><select value={form.categoryId} onChange={(event) => updateField('categoryId', event.target.value)} required><option value="">Kategori seçin</option>{lookups.categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                  <label className="admin-field admin-field-span-2"><span>Kartela *</span><select value={form.fabricSampleBookId} onChange={(event) => updateField('fabricSampleBookId', event.target.value)} required><option value="">Kartela seçin</option>{sampleBooks.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><small className="admin-field-help">Ürün, seçilen fiziksel kumaş kartelasıyla ilişkilendirilir.</small></label>
                   <label className="admin-field"><span>Stil</span><select value={form.styleId} onChange={(event) => updateField('styleId', event.target.value)}><option value="">Stil seçilmedi</option>{lookups.styles.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
                   <label className="admin-field"><span>Materyal</span><select value={form.materialId} onChange={(event) => updateField('materialId', event.target.value)}><option value="">Materyal seçilmedi</option>{lookups.materials.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
                   <label className="admin-field admin-field-span-2"><span>Açıklama</span><textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} rows="4" placeholder="Kumaş, kullanım alanı ve öne çıkan özellikleri kısaca anlatın." /></label>
@@ -604,8 +645,8 @@ function ProductEditor({ product, lookups, lookupsLoading, request, onClose, onS
                 <fieldset className="admin-option-fieldset"><legend>Ölçü ve stok</legend><div className="admin-size-options">{lookups.sizes.map((size) => { const selected = Object.hasOwn(form.sizes, size.id); return <div className={selected ? 'selected' : ''} key={size.id}><label><input type="checkbox" checked={selected} onChange={() => toggleSize(size.id)} /><span>{size.name}</span></label>{selected && <label className="admin-stock-input"><span>Adet</span><input type="number" min="0" value={form.sizes[size.id]} onChange={(event) => setForm((current) => ({ ...current, sizes: { ...current.sizes, [size.id]: event.target.value } }))} /></label>}</div> })}</div></fieldset>
               </FormSection>
 
-              <FormSection title="Ürün görselleri" description="İlk görsel yeni ürünün kapak görseli olur. JPG, PNG veya WebP; en fazla 10 MB.">
-                {detail?.images?.length > 0 && <div className="admin-existing-images">{detail.images.map((image) => <article className={image.isMainImage ? 'main' : ''} key={image.id}><img src={resolveImageUrl(image.url)} alt="Ürün görseli" /><div>{image.isMainImage ? <span>Kapak</span> : <button type="button" onClick={() => setMainImage(image.id)}>Kapak yap</button>}<button className="danger" type="button" onClick={() => deleteImage(image)}>Sil</button></div></article>)}</div>}
+              <FormSection title="Ürün görselleri" description="İlk görsel yeni ürünün kapak görseli olur. JPG, PNG veya WebP; en fazla 10 MB. Görseller otomatik olarak WebP'ye dönüştürülür.">
+                {detail?.images?.length > 0 && <div className="admin-existing-images">{detail.images.map((image) => { const attributes = getResponsiveImageAttributes(image, resolveImageUrl); return <article className={image.isMainImage ? 'main' : ''} key={image.id}><img {...attributes} sizes={attributes.srcSet ? '(max-width: 700px) 50vw, 240px' : undefined} alt="Ürün görseli" width="4" height="3" loading="lazy" decoding="async" /><div>{image.isMainImage ? <span>Kapak</span> : <button type="button" onClick={() => setMainImage(image.id)}>Kapak yap</button>}<button className="danger" type="button" onClick={() => deleteImage(image)}>Sil</button></div></article> })}</div>}
                 <label className="admin-upload-zone">
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => { addImages(event.target.files); event.target.value = '' }} />
                   <span className="admin-upload-symbol" aria-hidden="true">＋</span>
@@ -642,6 +683,199 @@ function QueuedImage({ file, index, onRemove }) {
   const previewUrl = useMemo(() => URL.createObjectURL(file), [file])
   useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl])
   return <article><img src={previewUrl} alt="Yüklenecek görsel önizlemesi" /><span><strong>{file.name}</strong><small>{formatFileSize(file.size)}</small></span><button type="button" onClick={() => onRemove(index)} aria-label={`${file.name} görselini kaldır`}>×</button></article>
+}
+
+function getSampleBookImage(sampleBook) {
+  if (!sampleBook.imageUrl) return null
+  return {
+    url: sampleBook.imageUrl,
+    smallUrl: sampleBook.imageSmallUrl,
+    mediumUrl: sampleBook.imageMediumUrl,
+    largeUrl: sampleBook.imageLargeUrl,
+    smallWidth: sampleBook.imageSmallWidth,
+    mediumWidth: sampleBook.imageMediumWidth,
+    largeWidth: sampleBook.imageLargeWidth,
+  }
+}
+
+function SampleBookImage({ sampleBook, className = '' }) {
+  const image = getSampleBookImage(sampleBook)
+  if (!image) return <div className={`${className} admin-sample-book-placeholder`} aria-hidden="true">▤</div>
+  const attributes = getResponsiveImageAttributes(image, resolveImageUrl)
+  return <img className={className} {...attributes} sizes={attributes.srcSet ? '(max-width: 700px) calc(100vw - 56px), 360px' : undefined} alt={`${sampleBook.name} kartelası`} width="4" height="5" loading="lazy" decoding="async" />
+}
+
+function SampleBooksManager({ sampleBooks, isLoading, refreshSampleBooks, request, showToast }) {
+  const [editor, setEditor] = useState(undefined)
+
+  async function deleteSampleBook(sampleBook) {
+    if (!window.confirm(`“${sampleBook.name}” kartelasını kalıcı olarak silmek istiyor musunuz?`)) return
+    try {
+      await request(`/api/fabric-sample-books/${sampleBook.id}`, { method: 'DELETE' })
+      showToast('Kartela silindi.')
+      await refreshSampleBooks()
+    } catch (error) {
+      showToast(error.status === 409 ? 'Bu kartelaya bağlı ürünler var. Önce ürünleri başka bir kartelaya taşıyın.' : error.message, 'error')
+    }
+  }
+
+  return (
+    <main className="admin-content">
+      <div className="admin-page-heading">
+        <div><p className="admin-eyebrow">Fiziksel mağaza koleksiyonları</p><h1>Kartelalar</h1><span>{sampleBooks.length} kartela kayıtlı</span></div>
+        <button className="admin-button admin-button-primary" onClick={() => setEditor(null)} type="button"><span aria-hidden="true">＋</span> Yeni kartela</button>
+      </div>
+
+      {isLoading ? <section className="admin-panel-card"><LoadingRows /></section> : sampleBooks.length ? (
+        <section className="admin-sample-book-grid">
+          {sampleBooks.map((sampleBook) => (
+            <article className="admin-sample-book-card" key={sampleBook.id}>
+              <SampleBookImage className="admin-sample-book-cover" sampleBook={sampleBook} />
+              <div className="admin-sample-book-card-body">
+                <div><h2>{sampleBook.name}</h2><p>{sampleBook.productCount} bağlı ürün</p></div>
+                <div className="admin-row-actions">
+                  <button type="button" onClick={() => setEditor(sampleBook)}>Düzenle</button>
+                  <button className="danger" type="button" onClick={() => deleteSampleBook(sampleBook)}>Sil</button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : (
+        <section className="admin-panel-card admin-empty-state">
+          <span aria-hidden="true">▤</span>
+          <h2>Henüz kartela eklenmemiş</h2>
+          <p>Ürünleri fiziksel kumaş kartelalarıyla ilişkilendirmek için ilk kartelayı oluşturun.</p>
+          <button className="admin-button admin-button-primary" onClick={() => setEditor(null)} type="button">İlk kartelayı ekle</button>
+        </section>
+      )}
+
+      {editor !== undefined && (
+        <SampleBookEditor
+          sampleBook={editor}
+          request={request}
+          showToast={showToast}
+          onClose={() => setEditor(undefined)}
+          onChanged={refreshSampleBooks}
+          onSaved={async (message) => {
+            setEditor(undefined)
+            showToast(message)
+            await refreshSampleBooks()
+          }}
+        />
+      )}
+    </main>
+  )
+}
+
+function SampleBookEditor({ sampleBook, request, showToast, onClose, onChanged, onSaved }) {
+  const [currentSampleBook, setCurrentSampleBook] = useState(sampleBook)
+  const [name, setName] = useState(sampleBook?.name ?? '')
+  const [imageFile, setImageFile] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
+  const dialogRef = useRef(null)
+
+  useEffect(() => {
+    document.body.classList.add('admin-modal-open')
+    dialogRef.current?.focus()
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.classList.remove('admin-modal-open')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
+
+  function chooseImage(files) {
+    const file = files[0]
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setError('JPG, PNG veya WebP biçiminde ve en fazla 10 MB bir görsel seçin.')
+      return
+    }
+    setError('')
+    setImageFile(file)
+  }
+
+  async function deleteImage() {
+    if (!currentSampleBook?.imageUrl || !window.confirm('Kartela görselini silmek istiyor musunuz?')) return
+    try {
+      await request(`/api/fabric-sample-books/${currentSampleBook.id}/image`, { method: 'DELETE' })
+      setCurrentSampleBook((item) => ({ ...item, imageUrl: null }))
+      await onChanged()
+      showToast('Kartela görseli silindi.')
+    } catch (requestError) {
+      showToast(requestError.message, 'error')
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (!name.trim()) return setError('Kartela adı zorunludur.')
+    setError('')
+    setIsSaving(true)
+    try {
+      const isExisting = Boolean(currentSampleBook)
+      let saved = await request(isExisting ? `/api/fabric-sample-books/${currentSampleBook.id}` : '/api/fabric-sample-books', {
+        method: isExisting ? 'PUT' : 'POST',
+        body: { name: name.trim() },
+      })
+      setCurrentSampleBook(saved)
+      if (imageFile) {
+        const imageBody = new FormData()
+        imageBody.append('file', imageFile)
+        saved = await request(`/api/fabric-sample-books/${saved.id}/image`, { method: 'POST', body: imageBody })
+        setCurrentSampleBook(saved)
+      }
+      onSaved(isExisting ? 'Kartela güncellendi.' : 'Yeni kartela oluşturuldu.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="admin-editor admin-sample-book-editor" role="dialog" aria-modal="true" aria-labelledby="sample-book-editor-title" tabIndex="-1" ref={dialogRef}>
+        <header className="admin-editor-header">
+          <div><p className="admin-eyebrow">Kartela</p><h2 id="sample-book-editor-title">{sampleBook ? 'Kartelayı düzenle' : 'Yeni kartela'}</h2></div>
+          <button className="admin-close-button" type="button" onClick={onClose} aria-label="Pencereyi kapat">×</button>
+        </header>
+        <form onSubmit={handleSubmit}>
+          <div className="admin-editor-body">
+            {error && <div className="admin-alert admin-alert-error" role="alert">{error}</div>}
+            <section className="admin-form-section admin-sample-book-form-section">
+              <div className="admin-form-section-heading"><h3>Kitap bilgileri</h3><p>Bu ad ürün düzenlerken seçim alanında, kitap görseli ise ürün detay galerisinde gösterilir.</p></div>
+              <div className="admin-form-section-content">
+                <label className="admin-field"><span>Kartela adı *</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Örn. Milano 2026" required autoFocus /></label>
+                {currentSampleBook?.imageUrl && (
+                  <div className="admin-sample-book-current-image">
+                    <SampleBookImage sampleBook={currentSampleBook} />
+                    <button className="admin-text-button danger" type="button" onClick={deleteImage}>Görseli sil</button>
+                  </div>
+                )}
+                <label className="admin-upload-zone">
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { chooseImage(event.target.files); event.target.value = '' }} />
+                  <span className="admin-upload-symbol" aria-hidden="true">＋</span>
+                  <strong>{currentSampleBook?.imageUrl ? 'Yeni görselle değiştirin' : 'Kartela görseli seçin'}</strong>
+                  <small>JPG, PNG veya WebP; en fazla 10 MB. Otomatik olarak optimize edilir.</small>
+                </label>
+                {imageFile && <QueuedImageList files={[imageFile]} onRemove={() => setImageFile(null)} />}
+              </div>
+            </section>
+          </div>
+          <footer className="admin-editor-footer">
+            <button className="admin-button admin-button-secondary" type="button" onClick={onClose}>Vazgeç</button>
+            <button className="admin-button admin-button-primary" disabled={isSaving} type="submit">{isSaving ? 'Kaydediliyor…' : 'Kaydet'}</button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  )
 }
 
 function AttributesManager({ lookups, lookupsLoading, refreshLookups, request, showToast }) {

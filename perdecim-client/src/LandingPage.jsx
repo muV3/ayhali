@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import heroImg from './assets/curtain-showroom-hero.png'
+import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
+import heroImg from './assets/curtain-showroom-hero.webp'
+import heroMobileImg from './assets/curtain-showroom-hero-mobile.webp'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
 
@@ -65,16 +67,12 @@ async function fetchProducts() {
   return result.items ?? []
 }
 
-function getMainImage(product) {
-  return product.mainImageUrl || product.images?.find((image) => image.isMainImage)?.url
-}
+function ProductImage({ product, sizes = '(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 50vw, 33vw' }) {
+  const image = getMainProductImage(product)
 
-function ProductImage({ product }) {
-  const imageUrl = getMainImage(product)
-
-  if (imageUrl) {
-    const src = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`
-    return <img src={src} alt={product.name} />
+  if (image) {
+    const attributes = getResponsiveImageAttributes(image, (url) => url.startsWith('http') ? url : `${API_BASE_URL}${url}`)
+    return <img {...attributes} sizes={attributes.srcSet ? sizes : undefined} alt={product.name} width="4" height="5" loading="lazy" decoding="async" />
   }
 
   return (
@@ -131,7 +129,11 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
       </header>
 
       <main>
-        <section id="hero" className="landing-hero" style={{ backgroundImage: `url(${heroImg})` }}>
+        <section id="hero" className="landing-hero">
+          <picture className="landing-hero-media" aria-hidden="true">
+            <source media="(max-width: 700px)" srcSet={heroMobileImg} />
+            <img src={heroImg} alt="" width="1600" height="878" fetchPriority="high" />
+          </picture>
           <div className="landing-hero-copy reveal-on-scroll">
             <h1>Perdecim</h1>
             <span>Modern, sakin ve zamansız perde seçkileriyle yaşam alanınıza dengeli bir ışık ve doku katın.</span>
@@ -162,7 +164,7 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
         {featuredProduct && (
           <section id="featured" className="featured-product-section reveal-on-scroll">
             <div className="featured-product-media">
-              <ProductImage product={featuredProduct} />
+              <ProductImage product={featuredProduct} sizes="(max-width: 900px) calc(100vw - 40px), 55vw" />
             </div>
             <div className="featured-product-copy">
               <p className="section-eyebrow">Öne Çıkan Ürün</p>

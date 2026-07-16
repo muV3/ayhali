@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import LandingPage from './LandingPage.jsx'
 import AdminPanel from './AdminPanel.jsx'
-import heroImg from './assets/curtain-showroom-hero.png'
+import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
+import heroImg from './assets/curtain-showroom-hero.webp'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
@@ -26,21 +27,73 @@ async function fetchJson(path) {
   return response.json()
 }
 
-function getMainImage(product) {
-  return product.mainImageUrl || product.images?.find((image) => image.isMainImage)?.url
-}
-
-function ProductArtwork({ product }) {
-  const imageUrl = getMainImage(product)
-  if (imageUrl) {
-    const src = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`
-    return <img src={src} alt={product.name} />
+function ProductArtwork({ product, priority = false, sizes = '(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 50vw, 33vw' }) {
+  const image = getMainProductImage(product)
+  if (image) {
+    const attributes = getResponsiveImageAttributes(image, (url) => url.startsWith('http') ? url : `${API_BASE_URL}${url}`)
+    return <img {...attributes} sizes={attributes.srcSet ? sizes : undefined} alt={product.name} width="4" height="5" loading={priority ? 'eager' : 'lazy'} decoding="async" {...(priority ? { fetchPriority: 'high' } : {})} />
   }
 
   return (
     <div className="fabric-art" aria-hidden="true">
       <span></span>
     </div>
+  )
+}
+
+function getSampleBookGalleryImage(sampleBook) {
+  if (!sampleBook?.imageUrl) return null
+  return {
+    id: `sample-book-${sampleBook.id}`,
+    url: sampleBook.imageUrl,
+    smallUrl: sampleBook.imageSmallUrl,
+    mediumUrl: sampleBook.imageMediumUrl,
+    largeUrl: sampleBook.imageLargeUrl,
+    smallWidth: sampleBook.imageSmallWidth,
+    mediumWidth: sampleBook.imageMediumWidth,
+    largeWidth: sampleBook.imageLargeWidth,
+    isSampleBook: true,
+  }
+}
+
+function ProductGallery({ product }) {
+  const galleryImages = useMemo(() => {
+    const productImages = product.images ?? []
+    const sampleBookImage = getSampleBookGalleryImage(product.fabricSampleBook)
+    return sampleBookImage ? [...productImages, sampleBookImage] : productImages
+  }, [product.fabricSampleBook, product.images])
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [product.id])
+
+  if (!galleryImages.length) {
+    return <div className="detail-media"><ProductArtwork product={product} priority sizes="(max-width: 900px) calc(100vw - 40px), 55vw" /></div>
+  }
+
+  const activeImage = galleryImages[Math.min(activeIndex, galleryImages.length - 1)]
+  const attributes = getResponsiveImageAttributes(activeImage, (url) => url.startsWith('http') ? url : `${API_BASE_URL}${url}`)
+
+  return (
+    <section className="product-gallery" aria-label="Ürün görselleri">
+      <div className="detail-media">
+        <img {...attributes} sizes={attributes.srcSet ? '(max-width: 900px) calc(100vw - 40px), 55vw' : undefined} alt={product.name} width="4" height="5" fetchPriority="high" decoding="async" />
+      </div>
+      {galleryImages.length > 1 && (
+        <div className="product-gallery-thumbnails" aria-label="Görsel seçin">
+          {galleryImages.map((image, index) => {
+            const thumbnailUrl = image.smallUrl ?? image.url
+            const thumbnailSrc = thumbnailUrl.startsWith('http') ? thumbnailUrl : `${API_BASE_URL}${thumbnailUrl}`
+            return (
+              <button className={index === activeIndex ? 'active' : ''} type="button" key={image.id ?? `${image.url}-${index}`} onClick={() => setActiveIndex(index)} aria-label={`${index + 1}. ürün görselini göster`}>
+                <img src={thumbnailSrc} alt="" width="4" height="5" loading="lazy" decoding="async" />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -60,6 +113,7 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
   const [products, setProducts] = useState(initialProduct ? [initialProduct] : [])
   const [attributes, setAttributes] = useState(fallbackAttributes)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedProductDetail, setSelectedProductDetail] = useState(null)
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState({ category: '', color: '', size: '', style: '', material: '', available: true, sort: 'featured' })
 
@@ -105,6 +159,23 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
     }
   }, [initialProduct])
 
+  useEffect(() => {
+    if (route.name !== 'detail' || !route.productId) {
+      setSelectedProductDetail(null)
+      return undefined
+    }
+
+    let isMounted = true
+    setSelectedProductDetail(null)
+    fetchJson(`/api/products/${route.productId}`)
+      .then((product) => {
+        if (isMounted) setSelectedProductDetail(product)
+      })
+      .catch(() => {})
+
+    return () => { isMounted = false }
+  }, [route.name, route.productId])
+
   const visibleProducts = useMemo(() => {
     const search = query.trim().toLowerCase()
     return products
@@ -126,7 +197,7 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
   }, [filters, products, query])
 
   const featuredProducts = visibleProducts.filter((product) => product.isFeatured).slice(0, 3)
-  const selectedProduct = products.find((product) => product.id === route.productId)
+  const selectedProduct = selectedProductDetail ?? products.find((product) => product.id === route.productId)
 
   function navigate(nextRoute) {
     runPageTransition(() => {
@@ -203,20 +274,28 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
       )}
 
       {route.name === 'detail' && selectedProduct && (
-        <main className="detail-layout">
-          <div className="detail-media"><ProductArtwork product={selectedProduct} /></div>
-          <section className="detail-content">
-            <button className="back-button button button-outline button-sm" type="button" onClick={navigateBackFromDetail}>GERİ</button>
-            <p className="product-code">{selectedProduct.code}</p>
-            <h1>{selectedProduct.name}</h1>
-            <p>{selectedProduct.description}</p>
-            <dl className="spec-list">
-              <div><dt>Kategori</dt><dd>{selectedProduct.category}</dd></div>
-              <div><dt>Renkler</dt><dd>{selectedProduct.colors?.join(', ')}</dd></div>
-              <div><dt>Ölçüler</dt><dd>{selectedProduct.sizes?.join(', ')}</dd></div>
-              <div><dt>Durum</dt><dd>{selectedProduct.isAvailable ? 'Mağazada mevcut' : 'Stokta yok'}</dd></div>
-            </dl>
-          </section>
+        <main className="product-detail-page">
+          <div className="detail-layout">
+            <ProductGallery product={selectedProduct} />
+            <section className="detail-content">
+              <button className="back-button button button-outline button-sm" type="button" onClick={navigateBackFromDetail}>GERİ</button>
+              <p className="product-code">{selectedProduct.code}</p>
+              <h1>{selectedProduct.name}</h1>
+              <p>{selectedProduct.description}</p>
+              <dl className="spec-list">
+                <div><dt>Kategori</dt><dd>{selectedProduct.category}</dd></div>
+                <div><dt>Renkler</dt><dd>{selectedProduct.colors?.join(', ')}</dd></div>
+                <div><dt>Ölçüler</dt><dd>{selectedProduct.sizes?.map((size) => typeof size === 'string' ? size : size.name).join(', ')}</dd></div>
+                <div><dt>Durum</dt><dd>{selectedProduct.isAvailable ? 'Mağazada mevcut' : 'Stokta yok'}</dd></div>
+              </dl>
+            </section>
+          </div>
+          {selectedProduct.suggestedProducts?.length > 0 && (
+            <section className="same-book-products">
+              <div className="section-heading"><p>İlginizi çekebilir</p><h2>Benzer kumaş seçenekleri</h2></div>
+              <ProductGrid products={selectedProduct.suggestedProducts} priorityCount={0} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: route.returnTo ?? 'products' })} />
+            </section>
+          )}
         </main>
       )}
 
@@ -266,14 +345,14 @@ function SelectFilter({ label, onChange, options, value }) {
   )
 }
 
-function ProductGrid({ onOpen, products }) {
+function ProductGrid({ onOpen, products, priorityCount = 3 }) {
   if (!products.length) return <div className="empty-state">Bu seçimlere uygun ürün bulunamadı.</div>
 
   return (
     <div className="product-grid">
-      {products.map((product) => (
+      {products.map((product, index) => (
         <article className="product-card" key={product.id}>
-          <button type="button" className="product-image" onClick={() => onOpen(product)}><ProductArtwork product={product} /></button>
+          <button type="button" className="product-image" onClick={() => onOpen(product)}><ProductArtwork product={product} priority={index < priorityCount} /></button>
           <div className="product-body">
             <p className="product-code">{product.code}</p>
             <h3>{product.name}</h3>
