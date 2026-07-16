@@ -16,6 +16,8 @@ public class ProductImagesController(ProductImageService productImageService) : 
             return NotFound();
         }
 
+        Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        Response.Headers.Append("X-Content-Type-Options", "nosniff");
         return File(content, contentType ?? "application/octet-stream");
     }
 }

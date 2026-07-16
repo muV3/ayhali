@@ -173,6 +173,13 @@
   resize: vertical;
 }
 
+.admin-field-help {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 .admin-field input:hover,
 .admin-field select:hover,
 .admin-field textarea:hover {
@@ -547,6 +554,66 @@
 .admin-attribute-edit button { flex: 0 0 auto; }
 .admin-empty-inline { padding: 34px 0; color: var(--admin-muted); font-size: 13px; text-align: center; }
 
+.admin-sample-book-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-sample-book-card {
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: 0 10px 35px rgba(15, 23, 42, .045);
+}
+
+.admin-sample-book-cover,
+.admin-sample-book-placeholder {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  display: block;
+  object-fit: cover;
+  background: #efefeb;
+}
+
+.admin-sample-book-placeholder {
+  display: grid;
+  place-items: center;
+  color: #8a6900;
+  background: linear-gradient(145deg, #fff8dc, #f1efe7);
+  font-size: 48px;
+}
+
+.admin-sample-book-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.admin-sample-book-card-body h2 {
+  margin: 0;
+  color: var(--admin-text);
+  font: 800 17px/1.2 Manrope, sans-serif;
+}
+
+.admin-sample-book-card-body p {
+  margin: 5px 0 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-sample-book-editor { width: min(100%, 760px); }
+.admin-sample-book-form-section { grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); }
+.admin-sample-book-current-image { display: grid; justify-items: start; gap: 8px; }
+.admin-sample-book-current-image img,
+.admin-sample-book-current-image > div { width: min(100%, 260px); border-radius: 9px; }
+.admin-sample-book-current-image img { height: auto; }
+
 @media (max-width: 900px) {
   .admin-app { display: block; }
   .admin-sidebar { display: none; }
@@ -554,11 +621,12 @@
   .admin-mobile-header .admin-brand-mark { width: 34px; height: 34px; border-radius: 8px; font-size: 18px; }
   .admin-mobile-header .admin-sidebar-brand { gap: 9px; }
   .admin-mobile-header .admin-sidebar-brand strong { font-size: 18px; }
-  .admin-mobile-nav { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 18px 0; background: #fff; }
+  .admin-mobile-nav { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 18px 0; background: #fff; }
   .admin-mobile-nav button { min-height: 40px; border: 0; border-bottom: 3px solid transparent; color: var(--admin-muted); background: transparent; font-weight: 800; }
   .admin-mobile-nav button.active { border-color: var(--admin-primary); color: var(--admin-text); }
   .admin-form-section { grid-template-columns: 1fr; }
   .admin-form-section-heading { max-width: 560px; }
+  .admin-sample-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 680px) {
@@ -596,6 +664,9 @@
   .admin-attribute-tabs { display: flex; overflow-x: auto; padding-bottom: 5px; }
   .admin-attribute-tabs button { flex: 0 0 auto; }
   .admin-add-attribute { grid-template-columns: 1fr; }
+  .admin-mobile-nav { overflow-x: auto; grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+  .admin-sample-book-grid { grid-template-columns: 1fr; }
+  .admin-sample-book-form-section { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<FabricSampleBook> FabricSampleBooks => Set<FabricSampleBook>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Color> Colors => Set<Color>();
     public DbSet<Size> Sizes => Set<Size>();
@@ -22,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         base.OnModelCreating(modelBuilder);
 
         ConfigureProducts(modelBuilder);
+        ConfigureFabricSampleBooks(modelBuilder);
         ConfigureLookupTables(modelBuilder);
         ConfigureAdminUsers(modelBuilder);
         ConfigureInquiries(modelBuilder);
@@ -38,10 +40,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(product => product.Code).HasMaxLength(100).IsRequired();
             entity.Property(product => product.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(product => product.IsAvailable).HasDefaultValue(true);
+            entity.Property(product => product.FabricSampleBookId).HasDefaultValue(1);
 
             entity.HasOne(product => product.Category)
                 .WithMany(category => category.Products)
                 .HasForeignKey(product => product.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(product => product.FabricSampleBook)
+                .WithMany(sampleBook => sampleBook.Products)
+                .HasForeignKey(product => product.FabricSampleBookId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(product => product.Style)
@@ -94,6 +102,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(color => color.ProductColors)
                 .HasForeignKey(productColor => productColor.ColorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureFabricSampleBooks(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<FabricSampleBook>(entity =>
+        {
+            entity.HasIndex(sampleBook => sampleBook.Name).IsUnique();
+            entity.Property(sampleBook => sampleBook.Name).HasMaxLength(150).IsRequired();
+            entity.Property(sampleBook => sampleBook.ImageUrl).HasMaxLength(500);
+            entity.Property(sampleBook => sampleBook.CreatedAt).HasDefaultValueSql("now()");
         });
     }
 

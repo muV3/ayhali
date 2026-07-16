@@ -411,7 +411,7 @@
 
 .product-image {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 4 / 5;
   padding: 0;
   border: 0;
   display: block;
@@ -539,15 +539,40 @@
   display: grid;
   grid-template-columns: minmax(280px, 1.05fr) minmax(280px, 0.95fr);
   gap: clamp(24px, 5vw, 64px);
-  align-items: center;
+  align-items: start;
 }
 
 .detail-media {
-  aspect-ratio: 4 / 3;
+  position: relative;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 8px;
   background: var(--sand);
 }
+
+.product-gallery { min-width: 0; display: grid; gap: 12px; }
+.product-gallery .detail-media img { object-fit: contain; }
+
+.product-gallery-thumbnails {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.product-gallery-thumbnails button {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  padding: 0;
+  background: var(--sand);
+  cursor: pointer;
+}
+
+.product-gallery-thumbnails button.active { border-color: #d6a400; }
+.product-gallery-thumbnails img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.same-book-products { padding: 0 clamp(20px, 5vw, 72px) clamp(56px, 7vw, 96px); }
 
 .detail-content {
   display: grid;
@@ -698,6 +723,10 @@ footer span:first-child {
     min-height: 620px;
   }
 
+  .product-gallery-thumbnails {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .section-heading.inline,
   footer {
     flex-direction: column;
@@ -835,15 +864,31 @@ footer span:first-child {
 }
 
 .landing-hero {
+  position: relative;
+  overflow: hidden;
   min-height: 100svh;
   display: flex;
   align-items: flex-end;
   padding: clamp(120px, 18vh, 180px) clamp(20px, 5vw, 72px) clamp(36px, 8vh, 82px);
-  background-position: center;
-  background-size: cover;
+}
+
+.landing-hero-media,
+.landing-hero-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-hero-media img {
+  display: block;
+  object-fit: cover;
+  object-position: center;
 }
 
 .landing-hero-copy {
+  position: relative;
+  z-index: 1;
   max-width: 780px;
   color: #ffffff;
   text-shadow: 0 2px 24px rgba(15, 23, 42, 0.38);
@@ -939,7 +984,7 @@ footer span:first-child {
 
 .landing-product-image {
   display: block;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   background: var(--stone);
 }

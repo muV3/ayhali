@@ -17,6 +17,9 @@ public class CreateProductDto
     [Range(1, int.MaxValue)]
     public int CategoryId { get; set; }
 
+    [Range(1, int.MaxValue)]
+    public int FabricSampleBookId { get; set; }
+
     public int? StyleId { get; set; }
     public int? MaterialId { get; set; }
 
