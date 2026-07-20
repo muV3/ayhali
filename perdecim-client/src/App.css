@@ -493,10 +493,20 @@
 }
 
 .filters {
+  --filters-sticky-top: 88px;
+  --filters-start-offset: clamp(28px, 5vw, 64px);
   position: sticky;
-  top: 88px;
+  top: var(--filters-sticky-top);
   display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   gap: 14px;
+  max-height: calc(100dvh - var(--filters-sticky-top) - var(--filters-start-offset) - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -505,6 +515,7 @@
 
 .filters label {
   display: grid;
+  min-width: 0;
   gap: 6px;
   color: var(--muted);
   font-size: 13px;
@@ -514,6 +525,8 @@
 .filters input,
 .filters select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 40px;
   box-sizing: border-box;
   border: 1px solid var(--line);
@@ -711,6 +724,11 @@ footer span:first-child {
 
   .filters {
     position: static;
+    max-height: none;
+    overflow-x: visible;
+    overflow-y: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
   }
 }
 
@@ -1601,7 +1619,7 @@ footer span:first-child {
 .app-shell .catalog-layout {
   grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
   gap: clamp(22px, 3vw, 36px);
-  padding: clamp(32px, 5vw, 72px) clamp(20px, 5vw, 72px);
+  padding: 18px clamp(20px, 5vw, 72px) clamp(32px, 5vw, 72px);
 }
 
 .app-shell .section-heading {
@@ -1622,7 +1640,8 @@ footer span:first-child {
 }
 
 .app-shell .filters {
-  top: 92px;
+  --filters-sticky-top: 92px;
+  --filters-start-offset: 18px;
   gap: 16px;
   padding: 18px;
   border: 1px solid var(--border);
@@ -1883,6 +1902,10 @@ footer span:first-child {
 @media (max-width: 900px) {
   .app-shell .site-header {
     grid-template-columns: 1fr;
+  }
+
+  .app-shell .catalog-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
