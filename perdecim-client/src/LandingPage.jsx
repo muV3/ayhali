@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
-import heroImg from './assets/curtain-showroom-hero.webp'
-import heroMobileImg from './assets/curtain-showroom-hero-mobile.webp'
+import showroomImg from './assets/perdecim-showroom.jpeg'
+import storefrontImg from './assets/perdecim-storefront.jpeg'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
+
+const heroSlides = [
+  {
+    src: storefrontImg,
+    alt: 'Zonguldak Perdecim mağazasının dış cephesi',
+    objectPosition: 'center 29%',
+  },
+  {
+    src: showroomImg,
+    alt: 'Perdecim mağazasının perde ve kumaşlarla dolu showroom alanı',
+    objectPosition: 'center 25%',
+  },
+]
 
 const fallbackProducts = [
   {
@@ -84,6 +97,8 @@ function ProductImage({ product, sizes = '(max-width: 700px) calc(100vw - 40px),
 
 function LandingPage({ onOpenProduct, onOpenProducts }) {
   const [products, setProducts] = useState(fallbackProducts)
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0)
+  const [isHeroSliderPaused, setIsHeroSliderPaused] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -100,6 +115,16 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (isHeroSliderPaused) return undefined
+
+    const timeout = window.setTimeout(() => {
+      setActiveHeroSlide((current) => (current + 1) % heroSlides.length)
+    }, 3000)
+
+    return () => window.clearTimeout(timeout)
+  }, [activeHeroSlide, isHeroSliderPaused])
 
   function handleSectionLink(event, sectionId) {
     event.preventDefault()
@@ -130,16 +155,58 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
 
       <main>
         <section id="hero" className="landing-hero">
-          <picture className="landing-hero-media" aria-hidden="true">
-            <source media="(max-width: 700px)" srcSet={heroMobileImg} />
-            <img src={heroImg} alt="" width="1600" height="878" fetchPriority="high" />
-          </picture>
           <div className="landing-hero-copy reveal-on-scroll">
             <h1>Perdecim</h1>
-            <span>Modern, sakin ve zamansız perde seçkileriyle yaşam alanınıza dengeli bir ışık ve doku katın.</span>
+            <span>Evinizin havasını değiştiren perdeyi, kumaşına dokunarak ve rengini yerinde görerek seçin.</span>
             <div className="landing-hero-actions">
-              <a className="primary-button button button-primary" href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>KOLEKSİYONU İNCELE</a>
               <button className="primary-button button button-primary" type="button" onClick={onOpenProducts}>TÜM MODELLER</button>
+              <a className="button button-outline" href="https://www.google.com/maps/search/?api=1&query=Zonguldak%20Perdecim" target="_blank" rel="noreferrer">YOL TARİFİ ALIN</a>
+            </div>
+            <address className="landing-hero-address">
+              <span>Mağaza</span>
+              Cumhuriyet Caddesi TK Home yanı, Soğuksu, Zonguldak Merkez
+            </address>
+          </div>
+
+          <div className="landing-hero-slider" role="region" aria-roledescription="carousel" aria-label="Perdecim mağaza fotoğrafları">
+            <div className="landing-hero-slider-frame">
+              {heroSlides.map((slide, index) => (
+                <figure className={`landing-hero-slide${index === activeHeroSlide ? ' is-active' : ''}`} aria-hidden={index !== activeHeroSlide} key={slide.src}>
+                  <img
+                    src={slide.src}
+                    alt={slide.alt}
+                    width="1152"
+                    height="2048"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority={index === 0 ? 'high' : 'auto'}
+                    style={{ objectPosition: slide.objectPosition }}
+                  />
+                </figure>
+              ))}
+              <button
+                className={`landing-hero-slider-toggle${isHeroSliderPaused ? ' is-paused' : ''}`}
+                type="button"
+                onClick={() => setIsHeroSliderPaused((current) => !current)}
+                aria-label={isHeroSliderPaused ? 'Slayt gösterisini devam ettir' : 'Slayt gösterisini durdur'}
+                title={isHeroSliderPaused ? 'Devam ettir' : 'Durdur'}
+              >
+                <span aria-hidden="true" />
+              </button>
+            </div>
+            <div className="landing-hero-slider-controls">
+              <div className="landing-hero-slider-dots" aria-label="Fotoğraf seçin">
+                {heroSlides.map((slide, index) => (
+                  <button
+                    className={index === activeHeroSlide ? 'is-active' : ''}
+                    type="button"
+                    key={slide.src}
+                    onClick={() => setActiveHeroSlide(index)}
+                    aria-label={`${index + 1}. fotoğrafı göster`}
+                    aria-pressed={index === activeHeroSlide}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </section>
