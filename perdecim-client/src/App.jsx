@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router-dom'
 import LandingPage from './LandingPage.jsx'
 import AdminPanel from './AdminPanel.jsx'
 import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
-import heroImg from './assets/curtain-showroom-hero.webp'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
@@ -19,6 +19,41 @@ const fallbackAttributes = {
   sizes: ['120x200', '160x200', '250x260', '300x270'],
   styles: ['Modern', 'Soft Modern', 'Minimal'],
   materials: ['Keten Dokulu Kumaş', 'Vual Tül', 'Karartma Kumaş', 'Polyester Dokuma'],
+}
+
+const defaultCatalogFilters = {
+  category: '',
+  color: '',
+  size: '',
+  style: '',
+  material: '',
+  available: true,
+  sort: 'featured',
+}
+
+function readCatalogFilters(searchParams) {
+  return {
+    category: searchParams.get('kategori') ?? '',
+    color: searchParams.get('renk') ?? '',
+    size: searchParams.get('olcu') ?? '',
+    style: searchParams.get('stil') ?? '',
+    material: searchParams.get('materyal') ?? '',
+    available: searchParams.get('stok') !== 'tumu',
+    sort: searchParams.get('siralama') ?? defaultCatalogFilters.sort,
+  }
+}
+
+function writeCatalogSearchParams(query, filters) {
+  const params = new URLSearchParams()
+  if (query.trim()) params.set('q', query.trim())
+  if (filters.category) params.set('kategori', filters.category)
+  if (filters.color) params.set('renk', filters.color)
+  if (filters.size) params.set('olcu', filters.size)
+  if (filters.style) params.set('stil', filters.style)
+  if (filters.material) params.set('materyal', filters.material)
+  if (!filters.available) params.set('stok', 'tumu')
+  if (filters.sort !== defaultCatalogFilters.sort) params.set('siralama', filters.sort)
+  return params
 }
 
 async function fetchJson(path) {
@@ -106,16 +141,28 @@ function runPageTransition(updatePage) {
   updatePage()
 }
 
-function LegacyCatalogApp({ initialProduct, onBackHome }) {
-  const [route, setRoute] = useState(initialProduct
-    ? { name: 'detail', productId: initialProduct.id, returnTo: 'landing' }
-    : { name: 'products' })
-  const [products, setProducts] = useState(initialProduct ? [initialProduct] : [])
+function CatalogApp() {
+  const location = useLocation()
+  const navigateTo = useNavigate()
+  const { productId } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const routeName = location.pathname === '/iletisim' ? 'contact' : productId ? 'detail' : 'products'
+  const [products, setProducts] = useState([])
   const [attributes, setAttributes] = useState(fallbackAttributes)
   const [isLoading, setIsLoading] = useState(true)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [selectedProductDetail, setSelectedProductDetail] = useState(null)
-  const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ category: '', color: '', size: '', style: '', material: '', available: true, sort: 'featured' })
+  const query = searchParams.get('q') ?? ''
+  const filters = useMemo(() => readCatalogFilters(searchParams), [searchParams])
+
+  function setQuery(nextQuery) {
+    setSearchParams(writeCatalogSearchParams(nextQuery, filters), { replace: true })
+  }
+
+  function setFilters(update) {
+    const nextFilters = typeof update === 'function' ? update(filters) : update
+    setSearchParams(writeCatalogSearchParams(query, nextFilters), { replace: true })
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -143,9 +190,7 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
         })
       } catch {
         if (isMounted) {
-          setProducts(initialProduct && !fallbackProducts.some((product) => product.id === initialProduct.id)
-            ? [initialProduct, ...fallbackProducts]
-            : fallbackProducts)
+          setProducts(fallbackProducts)
           setAttributes(fallbackAttributes)
         }
       } finally {
@@ -157,24 +202,29 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
     return () => {
       isMounted = false
     }
-  }, [initialProduct])
+  }, [])
 
   useEffect(() => {
-    if (route.name !== 'detail' || !route.productId) {
+    if (routeName !== 'detail' || !productId) {
+      setIsDetailLoading(false)
       setSelectedProductDetail(null)
       return undefined
     }
 
     let isMounted = true
+    setIsDetailLoading(true)
     setSelectedProductDetail(null)
-    fetchJson(`/api/products/${route.productId}`)
+    fetchJson(`/api/products/${productId}`)
       .then((product) => {
         if (isMounted) setSelectedProductDetail(product)
       })
       .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsDetailLoading(false)
+      })
 
     return () => { isMounted = false }
-  }, [route.name, route.productId])
+  }, [productId, routeName])
 
   const visibleProducts = useMemo(() => {
     const search = query.trim().toLowerCase()
@@ -196,72 +246,59 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
       })
   }, [filters, products, query])
 
-  const featuredProducts = visibleProducts.filter((product) => product.isFeatured).slice(0, 3)
-  const selectedProduct = selectedProductDetail ?? products.find((product) => product.id === route.productId)
+  const selectedProduct = selectedProductDetail ?? products.find((product) => String(product.id) === productId)
+
+  useEffect(() => {
+    if (routeName === 'products') document.title = 'Perde Modelleri | Perdecim'
+    if (routeName === 'contact') document.title = 'İletişim | Perdecim'
+    if (routeName === 'detail') document.title = selectedProduct ? `${selectedProduct.name} | Perdecim` : 'Ürün Detayı | Perdecim'
+  }, [routeName, selectedProduct])
 
   function navigate(nextRoute) {
+    let destination = '/modeller'
+    let state
+
+    if (nextRoute.name === 'landing' || nextRoute.name === 'home') destination = '/'
+    if (nextRoute.name === 'contact') destination = '/iletisim'
+    if (nextRoute.name === 'detail') {
+      destination = `/modeller/${nextRoute.productId}`
+      const returnPath = nextRoute.returnTo === 'landing' || nextRoute.returnTo === 'home'
+        ? '/'
+        : routeName === 'products'
+          ? `${location.pathname}${location.search}`
+          : location.state?.from ?? '/modeller'
+      state = { from: returnPath }
+    }
+
     runPageTransition(() => {
-      setRoute(nextRoute)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      navigateTo(destination, { state })
     })
   }
 
   function navigateBackFromDetail() {
-    if (route.returnTo === 'landing') {
-      onBackHome()
-      return
-    }
-
-    navigate({ name: route.returnTo ?? 'products' })
+    navigateTo(location.state?.from ?? '/modeller')
   }
 
   return (
     <div className="app-shell">
       <header className="site-header">
-        <button className="brand" type="button" onClick={onBackHome}>
+        <Link className="brand" to="/">
           <strong>Perdecim</strong>
           <span>Zonguldak</span>
-        </button>
+        </Link>
         <nav aria-label="Ana menü">
           {[
             ['products', 'MODELLER'],
             ['contact', 'İLETİŞİM'],
           ].map(([name, label]) => (
-            <button className={route.name === name ? 'active' : ''} key={name} type="button" onClick={() => navigate({ name })}>
+            <NavLink className={({ isActive }) => isActive ? 'active' : ''} end key={name} to={name === 'products' ? '/modeller' : '/iletisim'}>
               {label}
-            </button>
+            </NavLink>
           ))}
         </nav>
       </header>
 
-      {route.name === 'home' && (
-        <main>
-          <section className="hero-section">
-            <img src={heroImg} alt="Perdecim showroom iç mekanında sergilenen perdeler" />
-            <div className="hero-copy">
-              <p>Zonguldak'ın dijital perde showroom'u</p>
-              <h1>Kaliteli ve şık perde modellerini mağazaya gelmeden inceleyin.</h1>
-              <div className="hero-actions">
-                <button className="button button-primary" type="button" onClick={() => navigate({ name: 'products' })}>MODELLERİ İNCELE</button>
-              </div>
-            </div>
-          </section>
-          <section className="section">
-            <div className="section-heading">
-              <p>Öne çıkanlar</p>
-              <h2>Mağazada en çok sorulan modeller</h2>
-            </div>
-            <ProductGrid products={featuredProducts.length ? featuredProducts : visibleProducts.slice(0, 3)} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'home' })} />
-          </section>
-          <section className="trust-band">
-            <div><strong>Yerel mağaza</strong><span>Zonguldak'ta yüz yüze destek</span></div>
-            <div><strong>Net ürün bilgisi</strong><span>Ölçü, renk ve stok bilgisi tek ekranda</span></div>
-            <div><strong>Güncel bilgi</strong><span>Ürün detayları ve stok durumu tek ekranda</span></div>
-          </section>
-        </main>
-      )}
-
-      {route.name === 'products' && (
+      {routeName === 'products' && (
         <main className="catalog-layout">
           <CatalogFilters attributes={attributes} filters={filters} query={query} setFilters={setFilters} setQuery={setQuery} />
           <section className="catalog-results">
@@ -273,7 +310,7 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
         </main>
       )}
 
-      {route.name === 'detail' && selectedProduct && (
+      {routeName === 'detail' && selectedProduct && (
         <main className="product-detail-page">
           <div className="detail-layout">
             <ProductGallery product={selectedProduct} />
@@ -293,13 +330,23 @@ function LegacyCatalogApp({ initialProduct, onBackHome }) {
           {selectedProduct.suggestedProducts?.length > 0 && (
             <section className="same-book-products">
               <div className="section-heading"><p>İlginizi çekebilir</p><h2>Benzer kumaş seçenekleri</h2></div>
-              <ProductGrid products={selectedProduct.suggestedProducts} priorityCount={0} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: route.returnTo ?? 'products' })} />
+              <ProductGrid products={selectedProduct.suggestedProducts} priorityCount={0} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'products' })} />
             </section>
           )}
         </main>
       )}
 
-      {route.name === 'contact' && (
+      {routeName === 'detail' && !selectedProduct && (
+        <main className="route-state">
+          <p>{isDetailLoading || isLoading ? 'Yükleniyor' : 'Ürün bulunamadı'}</p>
+          <h1>{isDetailLoading || isLoading ? 'Ürün bilgileri getiriliyor.' : 'Bu ürün artık mevcut olmayabilir.'}</h1>
+          {!isDetailLoading && !isLoading && (
+            <button className="button button-primary" type="button" onClick={() => navigate({ name: 'products' })}>MODELLERE DÖN</button>
+          )}
+        </main>
+      )}
+
+      {routeName === 'contact' && (
         <main className="contact-page">
           <section>
             <p>İletişim</p>
@@ -365,30 +412,73 @@ function ProductGrid({ onOpen, products, priorityCount = 3 }) {
   )
 }
 
-function App() {
-  if (window.location.pathname === '/yonetim' || window.location.pathname.startsWith('/yonetim/')) {
-    return <AdminPanel />
-  }
+function RouteEffects() {
+  const location = useLocation()
+  const navigationType = useNavigationType()
 
-  return <PublicApp />
+  useEffect(() => {
+    if (location.pathname === '/') document.title = 'Perdecim | Zonguldak Perde Modelleri'
+    if (location.pathname.startsWith('/yonetim')) document.title = 'Yönetim | Perdecim'
+    if (!['/', '/modeller', '/iletisim'].includes(location.pathname) && !location.pathname.startsWith('/modeller/') && !location.pathname.startsWith('/yonetim')) {
+      document.title = 'Sayfa Bulunamadı | Perdecim'
+    }
+
+    if (location.hash) {
+      window.requestAnimationFrame(() => document.querySelector(location.hash)?.scrollIntoView())
+    } else if (navigationType !== 'POP') {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+  }, [location.hash, location.pathname, navigationType])
+
+  return null
 }
 
-function PublicApp() {
-  const [page, setPage] = useState({ name: 'landing' })
+function App() {
+  return (
+    <>
+      <RouteEffects />
+      <Routes>
+        <Route path="/" element={<LandingRoute />} />
+        <Route path="/modeller" element={<CatalogApp />} />
+        <Route path="/modeller/:productId" element={<CatalogApp />} />
+        <Route path="/iletisim" element={<CatalogApp />} />
+        <Route path="/yonetim/*" element={<AdminPanel />} />
+        <Route path="/products" element={<Navigate replace to="/modeller" />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
+  )
+}
 
-  function navigatePage(nextPage) {
-    runPageTransition(() => setPage(nextPage))
+function LandingRoute() {
+  const navigateTo = useNavigate()
+
+  function openProducts() {
+    runPageTransition(() => navigateTo('/modeller'))
   }
 
-  if (page.name === 'products') {
-    return <LegacyCatalogApp initialProduct={page.product} onBackHome={() => navigatePage({ name: 'landing' })} />
+  function openProduct(product) {
+    runPageTransition(() => navigateTo(`/modeller/${product.id}`, { state: { from: '/' } }))
   }
 
   return (
     <LandingPage
-      onOpenProduct={(product) => navigatePage({ name: 'products', product })}
-      onOpenProducts={() => navigatePage({ name: 'products' })}
+      onOpenProduct={openProduct}
+      onOpenProducts={openProducts}
     />
+  )
+}
+
+function NotFoundPage() {
+  const navigateTo = useNavigate()
+
+  return (
+    <main className="route-not-found">
+      <p>404</p>
+      <h1>Sayfa bulunamadı</h1>
+      <span>Aradığınız sayfa kaldırılmış veya adresi değişmiş olabilir.</span>
+      <button className="button button-primary" type="button" onClick={() => navigateTo('/')}>ANA SAYFAYA DÖN</button>
+    </main>
   )
 }
 
