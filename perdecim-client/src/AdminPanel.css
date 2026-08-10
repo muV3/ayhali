@@ -391,6 +391,11 @@
 .admin-product-table th { padding: 12px 18px; color: var(--admin-muted); background: #fbfbfa; font-size: 11px; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
 .admin-product-table td { padding: 15px 18px; border-top: 1px solid var(--admin-border); color: var(--admin-body); font-size: 13px; vertical-align: middle; }
 .admin-product-table tbody tr:hover { background: #fffdf6; }
+.admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-top: 1px solid var(--admin-border); color: var(--admin-muted); font-size: 12px; }
+.admin-pagination > div { display: flex; align-items: center; gap: 12px; }
+.admin-pagination button { min-height: 34px; padding: 0 13px; border: 1px solid var(--admin-border); border-radius: 8px; background: #fff; color: var(--admin-body); cursor: pointer; font: inherit; font-weight: 700; }
+.admin-pagination button:hover:not(:disabled) { border-color: var(--admin-gold); color: var(--admin-ink); }
+.admin-pagination button:disabled { cursor: not-allowed; opacity: .45; }
 
 .admin-product-cell { min-width: 260px; display: flex; align-items: center; gap: 13px; }
 .admin-product-cell > span { display: grid; gap: 3px; }
@@ -648,6 +653,8 @@
   .admin-product-table td:first-child { padding-bottom: 10px; }
   .admin-product-table td[data-label]::before { content: attr(data-label); color: var(--admin-muted); font-size: 11px; font-weight: 700; }
   .admin-product-table td:last-child { justify-content: flex-end; }
+  .admin-pagination { align-items: stretch; flex-direction: column; }
+  .admin-pagination > div { justify-content: space-between; }
   .admin-product-cell { min-width: 0; }
   .admin-status,
   .admin-featured { display: inline-block; margin: 0 0 0 5px; }
