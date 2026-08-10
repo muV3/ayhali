@@ -298,11 +298,13 @@ public class ProductService(AppDbContext dbContext)
         if (!string.IsNullOrWhiteSpace(queryParams.Search))
         {
             var search = queryParams.Search.Trim();
+            var searchPattern = $"%{EscapeLikePattern(search)}%";
             query = query.Where(product =>
-                product.Name.Contains(search) ||
-                product.Code.Contains(search) ||
-                (product.FabricSampleBook != null && product.FabricSampleBook.Name.Contains(search)) ||
-                (product.Description != null && product.Description.Contains(search)));
+                EF.Functions.ILike(product.Name, searchPattern, @"\") ||
+                EF.Functions.ILike(product.Code, searchPattern, @"\") ||
+                (product.Category != null && EF.Functions.ILike(product.Category.Name, searchPattern, @"\")) ||
+                (product.FabricSampleBook != null && EF.Functions.ILike(product.FabricSampleBook.Name, searchPattern, @"\")) ||
+                (product.Description != null && EF.Functions.ILike(product.Description, searchPattern, @"\")));
         }
 
         return query;
@@ -312,10 +314,15 @@ public class ProductService(AppDbContext dbContext)
     {
         return sortBy?.Trim().ToLowerInvariant() switch
         {
-            "featured" => query.OrderByDescending(product => product.IsFeatured).ThenByDescending(product => product.CreatedAt),
-            _ => query.OrderByDescending(product => product.CreatedAt)
+            "featured" => query.OrderByDescending(product => product.IsFeatured).ThenByDescending(product => product.CreatedAt).ThenByDescending(product => product.Id),
+            _ => query.OrderByDescending(product => product.CreatedAt).ThenByDescending(product => product.Id)
         };
     }
+
+    private static string EscapeLikePattern(string value) => value
+        .Replace(@"\", @"\\")
+        .Replace("%", @"\%")
+        .Replace("_", @"\_");
 
     private async Task<string?> ValidateProductReferencesAsync(
         string code,

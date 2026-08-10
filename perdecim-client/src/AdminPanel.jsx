@@ -4,6 +4,7 @@ import { getResponsiveImageAttributes } from './responsiveImages.js'
 import './AdminPanel.css'
 
 const SESSION_KEY = 'perdecim-admin-session'
+const ADMIN_PRODUCT_PAGE_SIZE = 60
 
 const lookupGroups = [
   { key: 'categories', label: 'Kategoriler', singular: 'Kategori' },
@@ -303,38 +304,56 @@ function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoad
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [availability, setAvailability] = useState('all')
+  const [page, setPage] = useState(1)
   const [editorProduct, setEditorProduct] = useState(undefined)
+  const latestRequestRef = useRef(0)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 250)
+    return () => window.clearTimeout(timeout)
+  }, [search])
 
   const loadProducts = useCallback(async () => {
+    const requestId = latestRequestRef.current + 1
+    latestRequestRef.current = requestId
     setIsLoading(true)
     try {
-      const result = await request('/api/products?pageSize=60&sortBy=newest')
+      const query = new URLSearchParams({
+        page: String(page),
+        pageSize: String(ADMIN_PRODUCT_PAGE_SIZE),
+        sortBy: 'newest',
+      })
+      if (debouncedSearch) query.set('search', debouncedSearch)
+      if (availability !== 'all') query.set('isAvailable', String(availability === 'available'))
+
+      const result = await request(`/api/products?${query}`)
+      if (requestId !== latestRequestRef.current) return
+
+      const nextTotalCount = result.totalCount ?? 0
+      const lastPage = Math.max(1, Math.ceil(nextTotalCount / ADMIN_PRODUCT_PAGE_SIZE))
+      if (page > lastPage) {
+        setPage(lastPage)
+        return
+      }
       setProducts(result.items ?? [])
-      setTotalCount(result.totalCount ?? 0)
+      setTotalCount(nextTotalCount)
     } catch (error) {
-      showToast(error.message, 'error')
+      if (requestId === latestRequestRef.current) showToast(error.message, 'error')
     } finally {
-      setIsLoading(false)
+      if (requestId === latestRequestRef.current) setIsLoading(false)
     }
-  }, [request, showToast])
+  }, [availability, debouncedSearch, page, request, showToast])
 
   useEffect(() => {
     loadProducts()
   }, [loadProducts])
 
-  const visibleProducts = useMemo(() => {
-    const normalizedSearch = search.trim().toLocaleLowerCase('tr-TR')
-    return products.filter((product) => {
-      const matchesSearch = !normalizedSearch || [product.name, product.code, product.category, product.fabricSampleBookName]
-        .filter(Boolean)
-        .some((value) => value.toLocaleLowerCase('tr-TR').includes(normalizedSearch))
-      const matchesAvailability = availability === 'all'
-        || (availability === 'available' && product.isAvailable)
-        || (availability === 'unavailable' && !product.isAvailable)
-      return matchesSearch && matchesAvailability
-    })
-  }, [availability, products, search])
+  const hasFilters = Boolean(debouncedSearch) || availability !== 'all'
+  const totalPages = Math.max(1, Math.ceil(totalCount / ADMIN_PRODUCT_PAGE_SIZE))
+  const firstVisibleProduct = totalCount ? ((page - 1) * ADMIN_PRODUCT_PAGE_SIZE) + 1 : 0
+  const lastVisibleProduct = Math.min(page * ADMIN_PRODUCT_PAGE_SIZE, totalCount)
 
   async function deleteProduct(product) {
     if (!window.confirm(`“${product.name}” ürününü ve görsellerini kalıcı olarak silmek istiyor musunuz?`)) return
@@ -350,7 +369,7 @@ function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoad
   return (
     <main className="admin-content">
       <div className="admin-page-heading">
-        <div><p className="admin-eyebrow">Showroom kataloğu</p><h1>Ürünler</h1><span>{totalCount} ürün kayıtlı</span></div>
+        <div><p className="admin-eyebrow">Showroom kataloğu</p><h1>Ürünler</h1><span>{totalCount} {hasFilters ? 'ürün bulundu' : 'ürün kayıtlı'}</span></div>
         <button className="admin-button admin-button-primary" onClick={() => setEditorProduct(null)} type="button"><span aria-hidden="true">＋</span> Yeni ürün</button>
       </div>
 
@@ -359,11 +378,11 @@ function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoad
           <label className="admin-search">
             <span className="sr-only">Ürün ara</span>
             <span aria-hidden="true">⌕</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ürün adı, kod veya kategori ara" />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Ürün adı, kod, kategori veya kartela ara" />
           </label>
           <label className="admin-compact-select">
             <span className="sr-only">Stok durumu</span>
-            <select value={availability} onChange={(event) => setAvailability(event.target.value)}>
+            <select value={availability} onChange={(event) => { setAvailability(event.target.value); setPage(1) }}>
               <option value="all">Tüm durumlar</option>
               <option value="available">Satışta</option>
               <option value="unavailable">Stokta yok</option>
@@ -373,12 +392,13 @@ function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoad
 
         {isLoading ? (
           <LoadingRows />
-        ) : visibleProducts.length ? (
-          <div className="admin-product-table-wrap">
-            <table className="admin-product-table">
+        ) : products.length ? (
+          <>
+            <div className="admin-product-table-wrap">
+              <table className="admin-product-table">
               <thead><tr><th>Ürün</th><th>Kartela</th><th>Kategori</th><th>Durum</th><th><span className="sr-only">İşlemler</span></th></tr></thead>
               <tbody>
-                {visibleProducts.map((product) => (
+                {products.map((product) => (
                   <tr key={product.id}>
                     <td>
                       <div className="admin-product-cell">
@@ -398,14 +418,25 @@ function ProductsManager({ lookups, lookupsLoading, sampleBooks, sampleBooksLoad
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <nav className="admin-pagination" aria-label="Ürün sayfaları">
+                <span>{firstVisibleProduct}–{lastVisibleProduct} / {totalCount}</span>
+                <div>
+                  <button disabled={page === 1} onClick={() => setPage((current) => current - 1)} type="button">Önceki</button>
+                  <span>Sayfa {page} / {totalPages}</span>
+                  <button disabled={page === totalPages} onClick={() => setPage((current) => current + 1)} type="button">Sonraki</button>
+                </div>
+              </nav>
+            )}
+          </>
         ) : (
           <div className="admin-empty-state">
             <span aria-hidden="true">▦</span>
-            <h2>{products.length ? 'Aramanızla eşleşen ürün yok' : 'Henüz ürün eklenmemiş'}</h2>
-            <p>{products.length ? 'Arama metnini veya durum filtresini değiştirin.' : 'İlk showroom ürününüzü ekleyerek başlayın.'}</p>
-            {!products.length && <button className="admin-button admin-button-primary" onClick={() => setEditorProduct(null)} type="button">İlk ürünü ekle</button>}
+            <h2>{hasFilters ? 'Aramanızla eşleşen ürün yok' : 'Henüz ürün eklenmemiş'}</h2>
+            <p>{hasFilters ? 'Arama metnini veya durum filtresini değiştirin.' : 'İlk showroom ürününüzü ekleyerek başlayın.'}</p>
+            {!hasFilters && <button className="admin-button admin-button-primary" onClick={() => setEditorProduct(null)} type="button">İlk ürünü ekle</button>}
           </div>
         )}
       </section>
