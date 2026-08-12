@@ -315,6 +315,8 @@ public class ProductService(AppDbContext dbContext)
         return sortBy?.Trim().ToLowerInvariant() switch
         {
             "featured" => query.OrderByDescending(product => product.IsFeatured).ThenByDescending(product => product.CreatedAt).ThenByDescending(product => product.Id),
+            "nameasc" => query.OrderBy(product => product.Name).ThenBy(product => product.Id),
+            "namedesc" => query.OrderByDescending(product => product.Name).ThenByDescending(product => product.Id),
             _ => query.OrderByDescending(product => product.CreatedAt).ThenByDescending(product => product.Id)
         };
     }

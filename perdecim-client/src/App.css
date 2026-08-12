@@ -1679,6 +1679,53 @@ footer span:first-child {
   gap: clamp(16px, 2vw, 24px);
 }
 
+.app-shell .catalog-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: clamp(28px, 4vw, 48px);
+}
+
+.app-shell .catalog-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-shell .catalog-pagination button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.app-shell .catalog-pagination button:hover:not(:disabled),
+.app-shell .catalog-pagination button.active {
+  border-color: var(--primary);
+  color: var(--text);
+  background: var(--primary-tint);
+}
+
+.app-shell .catalog-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.app-shell .catalog-pagination span {
+  min-width: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .app-shell .product-card {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1916,6 +1963,16 @@ footer span:first-child {
 
   .app-shell .product-body h3 {
     min-height: 0;
+  }
+
+  .app-shell .catalog-pagination {
+    gap: 6px;
+  }
+
+  .app-shell .catalog-pagination button {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 9px;
   }
 }
 
