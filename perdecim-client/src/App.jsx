@@ -6,6 +6,7 @@ import { getMainProductImage, getResponsiveImageAttributes } from './responsiveI
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7237'
+const CATALOG_PAGE_SIZE = 24
 
 const fallbackProducts = [
   { id: 1, name: 'Keten Dokulu Bej Fon Perde', code: 'PRD-1024', isAvailable: true, isFeatured: true, category: 'Fon Perde', colors: ['Bej', 'Krem'], sizes: ['260x270', '300x270'], style: 'Modern', material: 'Keten Dokulu Kumaş', description: 'Salon ve oturma alanları için sıcak, dökümlü ve sakin bir fon perde seçeneği.' },
@@ -31,19 +32,12 @@ const defaultCatalogFilters = {
   sort: 'featured',
 }
 
-function readCatalogFilters(searchParams) {
-  return {
-    category: searchParams.get('kategori') ?? '',
-    color: searchParams.get('renk') ?? '',
-    size: searchParams.get('olcu') ?? '',
-    style: searchParams.get('stil') ?? '',
-    material: searchParams.get('materyal') ?? '',
-    available: searchParams.get('stok') !== 'tumu',
-    sort: searchParams.get('siralama') ?? defaultCatalogFilters.sort,
-  }
+function readCatalogPage(searchParams) {
+  const page = Number.parseInt(searchParams.get('sayfa') ?? '1', 10)
+  return Number.isFinite(page) && page > 0 ? page : 1
 }
 
-function writeCatalogSearchParams(query, filters) {
+function writeCatalogSearchParams(query, filters, page = 1) {
   const params = new URLSearchParams()
   if (query.trim()) params.set('q', query.trim())
   if (filters.category) params.set('kategori', filters.category)
@@ -53,7 +47,35 @@ function writeCatalogSearchParams(query, filters) {
   if (filters.material) params.set('materyal', filters.material)
   if (!filters.available) params.set('stok', 'tumu')
   if (filters.sort !== defaultCatalogFilters.sort) params.set('siralama', filters.sort)
+  if (page > 1) params.set('sayfa', String(page))
   return params
+}
+
+function getLookupId(items, selectedName) {
+  if (!selectedName) return null
+  return items.find((item) => typeof item === 'object' && item.name === selectedName)?.id ?? null
+}
+
+function filterFallbackProducts(products, query, filters) {
+  const search = query.trim().toLocaleLowerCase('tr-TR')
+  return products
+    .filter((product) => {
+      const matchesSearch = !search || [product.name, product.code, product.description, product.category]
+        .filter(Boolean)
+        .some((value) => value.toLocaleLowerCase('tr-TR').includes(search))
+      return matchesSearch &&
+        (!filters.category || product.category === filters.category) &&
+        (!filters.color || product.colors?.includes(filters.color)) &&
+        (!filters.size || product.sizes?.includes(filters.size)) &&
+        (!filters.style || product.style === filters.style) &&
+        (!filters.material || product.material === filters.material) &&
+        (!filters.available || product.isAvailable)
+    })
+    .sort((a, b) => {
+      if (filters.sort === 'nameAsc') return a.name.localeCompare(b.name, 'tr-TR')
+      if (filters.sort === 'nameDesc') return b.name.localeCompare(a.name, 'tr-TR')
+      return Number(b.isFeatured) - Number(a.isFeatured)
+    })
 }
 
 async function fetchJson(path) {
@@ -149,11 +171,29 @@ function CatalogApp() {
   const routeName = location.pathname === '/iletisim' ? 'contact' : productId ? 'detail' : 'products'
   const [products, setProducts] = useState([])
   const [attributes, setAttributes] = useState(fallbackAttributes)
+  const [attributesLoaded, setAttributesLoaded] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [selectedProductDetail, setSelectedProductDetail] = useState(null)
   const query = searchParams.get('q') ?? ''
-  const filters = useMemo(() => readCatalogFilters(searchParams), [searchParams])
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+  const filterSignature = ['kategori', 'renk', 'olcu', 'stil', 'materyal', 'stok', 'siralama']
+    .map((name) => searchParams.get(name) ?? '')
+    .join('\u0000')
+  const filters = useMemo(() => {
+    const [category, color, size, style, material, stock, sort] = filterSignature.split('\u0000')
+    return {
+      category,
+      color,
+      size,
+      style,
+      material,
+      available: stock !== 'tumu',
+      sort: sort || defaultCatalogFilters.sort,
+    }
+  }, [filterSignature])
+  const page = readCatalogPage(searchParams)
 
   function setQuery(nextQuery) {
     setSearchParams(writeCatalogSearchParams(nextQuery, filters), { replace: true })
@@ -164,14 +204,22 @@ function CatalogApp() {
     setSearchParams(writeCatalogSearchParams(query, nextFilters), { replace: true })
   }
 
+  function setPage(nextPage) {
+    setSearchParams(writeCatalogSearchParams(query, filters, nextPage))
+    window.requestAnimationFrame(() => document.querySelector('.catalog-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query), 250)
+    return () => window.clearTimeout(timeout)
+  }, [query])
+
   useEffect(() => {
     let isMounted = true
 
-    async function loadShowroomData() {
-      setIsLoading(true)
+    async function loadAttributes() {
       try {
-        const [productResult, categories, colors, sizes, styles, materials] = await Promise.all([
-          fetchJson('/api/products?pageSize=24&sortBy=featured'),
+        const [categories, colors, sizes, styles, materials] = await Promise.all([
           fetchJson('/api/categories'),
           fetchJson('/api/colors'),
           fetchJson('/api/sizes'),
@@ -180,29 +228,73 @@ function CatalogApp() {
         ])
 
         if (!isMounted) return
-        setProducts(productResult.items ?? [])
-        setAttributes({
-          categories: categories.map((item) => item.name),
-          colors: colors.map((item) => item.name),
-          sizes: sizes.map((item) => item.name),
-          styles: styles.map((item) => item.name),
-          materials: materials.map((item) => item.name),
-        })
+        setAttributes({ categories, colors, sizes, styles, materials })
       } catch {
-        if (isMounted) {
-          setProducts(fallbackProducts)
-          setAttributes(fallbackAttributes)
+        if (isMounted) setAttributes(fallbackAttributes)
+      } finally {
+        if (isMounted) setAttributesLoaded(true)
+      }
+    }
+
+    loadAttributes()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!attributesLoaded) return undefined
+
+    let isMounted = true
+
+    async function loadProducts() {
+      setIsLoading(true)
+      try {
+        const productQuery = new URLSearchParams({
+          page: String(page),
+          pageSize: String(CATALOG_PAGE_SIZE),
+          sortBy: filters.sort,
+        })
+        if (debouncedQuery.trim()) productQuery.set('search', debouncedQuery.trim())
+        if (filters.available) productQuery.set('isAvailable', 'true')
+
+        const lookupFilters = [
+          ['categoryId', attributes.categories, filters.category],
+          ['colorId', attributes.colors, filters.color],
+          ['sizeId', attributes.sizes, filters.size],
+          ['styleId', attributes.styles, filters.style],
+          ['materialId', attributes.materials, filters.material],
+        ]
+        lookupFilters.forEach(([parameter, items, selectedName]) => {
+          const id = getLookupId(items, selectedName)
+          if (id !== null) productQuery.set(parameter, String(id))
+        })
+
+        const result = await fetchJson(`/api/products?${productQuery}`)
+        if (!isMounted) return
+
+        const nextTotalCount = result.totalCount ?? 0
+        const lastPage = Math.max(1, Math.ceil(nextTotalCount / CATALOG_PAGE_SIZE))
+        if (page > lastPage) {
+          setSearchParams(writeCatalogSearchParams(debouncedQuery, filters, lastPage), { replace: true })
+          return
         }
+
+        setProducts(result.items ?? [])
+        setTotalCount(nextTotalCount)
+      } catch {
+        if (!isMounted) return
+        const matchingProducts = filterFallbackProducts(fallbackProducts, debouncedQuery, filters)
+        setProducts(matchingProducts.slice((page - 1) * CATALOG_PAGE_SIZE, page * CATALOG_PAGE_SIZE))
+        setTotalCount(matchingProducts.length)
       } finally {
         if (isMounted) setIsLoading(false)
       }
     }
 
-    loadShowroomData()
-    return () => {
-      isMounted = false
-    }
-  }, [])
+    loadProducts()
+    return () => { isMounted = false }
+  }, [attributes, attributesLoaded, debouncedQuery, filters, page, setSearchParams])
 
   useEffect(() => {
     if (routeName !== 'detail' || !productId) {
@@ -225,26 +317,6 @@ function CatalogApp() {
 
     return () => { isMounted = false }
   }, [productId, routeName])
-
-  const visibleProducts = useMemo(() => {
-    const search = query.trim().toLowerCase()
-    return products
-      .filter((product) => {
-        const matchesSearch = !search || [product.name, product.code, product.description, product.category].filter(Boolean).some((value) => value.toLowerCase().includes(search))
-        return matchesSearch &&
-          (!filters.category || product.category === filters.category) &&
-          (!filters.color || product.colors?.includes(filters.color)) &&
-          (!filters.size || product.sizes?.includes(filters.size)) &&
-          (!filters.style || product.style === filters.style) &&
-          (!filters.material || product.material === filters.material) &&
-          (!filters.available || product.isAvailable)
-      })
-      .sort((a, b) => {
-        if (filters.sort === 'nameAsc') return a.name.localeCompare(b.name, 'tr-TR')
-        if (filters.sort === 'nameDesc') return b.name.localeCompare(a.name, 'tr-TR')
-        return Number(b.isFeatured) - Number(a.isFeatured)
-      })
-  }, [filters, products, query])
 
   const selectedProduct = selectedProductDetail ?? products.find((product) => String(product.id) === productId)
 
@@ -303,9 +375,17 @@ function CatalogApp() {
           <CatalogFilters attributes={attributes} filters={filters} query={query} setFilters={setFilters} setQuery={setQuery} />
           <section className="catalog-results">
             <div className="section-heading inline">
-              <div><p>{isLoading ? 'Yükleniyor' : `${visibleProducts.length} model`}</p><h2>Perde modelleri</h2></div>
+              <div><p>{isLoading ? 'Yükleniyor' : `${totalCount} model`}</p><h2>Perde modelleri</h2></div>
             </div>
-            <ProductGrid products={visibleProducts} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'products' })} />
+            <ProductGrid products={products} onOpen={(product) => navigate({ name: 'detail', productId: product.id, returnTo: 'products' })} />
+            {!isLoading && (
+              <CatalogPagination
+                page={page}
+                pageSize={CATALOG_PAGE_SIZE}
+                totalCount={totalCount}
+                onPageChange={setPage}
+              />
+            )}
           </section>
         </main>
       )}
@@ -388,7 +468,35 @@ function CatalogFilters({ attributes, filters, query, setFilters, setQuery }) {
 
 function SelectFilter({ label, onChange, options, value }) {
   return (
-    <label>{label}<select value={value} onChange={(event) => onChange(event.target.value)}><option value="">Tümü</option>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+    <label>{label}<select value={value} onChange={(event) => onChange(event.target.value)}><option value="">Tümü</option>{options.map((option) => {
+      const optionName = typeof option === 'string' ? option : option.name
+      return <option key={optionName} value={optionName}>{optionName}</option>
+    })}</select></label>
+  )
+}
+
+function CatalogPagination({ onPageChange, page, pageSize, totalCount }) {
+  const totalPages = Math.ceil(totalCount / pageSize)
+  if (totalPages <= 1) return null
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
+    .filter((pageNumber) => pageNumber === 1 || pageNumber === totalPages || Math.abs(pageNumber - page) <= 1)
+  const items = []
+  pageNumbers.forEach((pageNumber, index) => {
+    if (index > 0 && pageNumber - pageNumbers[index - 1] > 1) items.push(`ellipsis-${pageNumber}`)
+    items.push(pageNumber)
+  })
+
+  return (
+    <nav className="catalog-pagination" aria-label="Model sayfaları">
+      <button disabled={page === 1} onClick={() => onPageChange(page - 1)} type="button">Önceki</button>
+      <div>
+        {items.map((item) => typeof item === 'number'
+          ? <button className={item === page ? 'active' : ''} aria-current={item === page ? 'page' : undefined} key={item} onClick={() => onPageChange(item)} type="button">{item}</button>
+          : <span aria-hidden="true" key={item}>…</span>)}
+      </div>
+      <button disabled={page === totalPages} onClick={() => onPageChange(page + 1)} type="button">Sonraki</button>
+    </nav>
   )
 }
 
