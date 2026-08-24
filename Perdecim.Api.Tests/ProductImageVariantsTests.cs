@@ -24,6 +24,17 @@ public class ProductImageVariantsTests
     }
 
     [Fact]
+    public void GetVariantUrl_RecognizesCustomerHomeImageStem()
+    {
+        const string customerHomeUrl = "/api/product-images/customer-homes/0123456789abcdef0123456789abcdef-2000.webp";
+
+        Assert.Equal(
+            "/api/product-images/customer-homes/0123456789abcdef0123456789abcdef-800.webp",
+            ProductImageVariants.GetVariantUrl(customerHomeUrl, ProductImageVariants.SmallWidth));
+        Assert.Equal(3, ProductImageVariants.GetStoredVariantUrls(customerHomeUrl).Count);
+    }
+
+    [Fact]
     public void GetVariantUrl_LeavesLegacyImagesUntouched()
     {
         const string legacyUrl = "/api/product-images/products/42-0123456789abcdef0123456789abcdef.jpg";

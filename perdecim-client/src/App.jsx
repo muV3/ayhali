@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router-dom'
 import LandingPage from './LandingPage.jsx'
 import AdminPanel from './AdminPanel.jsx'
+import CustomerGalleryPage from './CustomerGalleryPage.jsx'
+import PublicHeader from './PublicHeader.jsx'
 import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
 import './App.css'
 
@@ -176,7 +178,6 @@ function CatalogApp() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [selectedProductDetail, setSelectedProductDetail] = useState(null)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const query = searchParams.get('q') ?? ''
   const [debouncedQuery, setDebouncedQuery] = useState(query)
   const filterSignature = ['kategori', 'renk', 'olcu', 'stil', 'materyal', 'stok', 'siralama']
@@ -195,37 +196,6 @@ function CatalogApp() {
     }
   }, [filterSignature])
   const page = readCatalogPage(searchParams)
-
-  useEffect(() => {
-    setIsMobileMenuOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (!isMobileMenuOpen) return undefined
-
-    const previousOverflow = document.body.style.overflow
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setIsMobileMenuOpen(false)
-    }
-
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isMobileMenuOpen])
-
-  useEffect(() => {
-    const desktopViewport = window.matchMedia('(min-width: 901px)')
-    const closeOnDesktop = (event) => {
-      if (event.matches) setIsMobileMenuOpen(false)
-    }
-
-    desktopViewport.addEventListener('change', closeOnDesktop)
-    return () => desktopViewport.removeEventListener('change', closeOnDesktop)
-  }, [])
 
   function setQuery(nextQuery) {
     setSearchParams(writeCatalogSearchParams(nextQuery, filters), { replace: true })
@@ -385,56 +355,7 @@ function CatalogApp() {
 
   return (
     <div className="app-shell">
-      <header className="site-header">
-        <button
-          className={`mobile-menu-toggle${isMobileMenuOpen ? ' is-open' : ''}`}
-          type="button"
-          aria-label={isMobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
-          aria-controls="catalog-mobile-menu"
-          aria-expanded={isMobileMenuOpen}
-          onClick={() => setIsMobileMenuOpen((current) => !current)}
-        >
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-        </button>
-        <Link className="brand" to="/" onClick={() => setIsMobileMenuOpen(false)}>
-          <strong>Perdecim</strong>
-          <span>Zonguldak</span>
-        </Link>
-        <nav className="desktop-nav" aria-label="Ana menü">
-          {[
-            ['products', 'MODELLER'],
-            ['contact', 'İLETİŞİM'],
-          ].map(([name, label]) => (
-            <NavLink className={({ isActive }) => isActive ? 'active' : ''} end key={name} to={name === 'products' ? '/modeller' : '/iletisim'}>
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-        <button
-          className={`mobile-menu-backdrop${isMobileMenuOpen ? ' is-open' : ''}`}
-          type="button"
-          aria-label="Menüyü kapat"
-          tabIndex={isMobileMenuOpen ? 0 : -1}
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-        <aside
-          id="catalog-mobile-menu"
-          className={`mobile-side-menu${isMobileMenuOpen ? ' is-open' : ''}`}
-          role="navigation"
-          aria-label="Mobil ana menü"
-          aria-hidden={!isMobileMenuOpen}
-          inert={!isMobileMenuOpen}
-        >
-          <strong className="mobile-side-menu-title">Menü</strong>
-          <div className="mobile-side-menu-links">
-            <Link to="/" onClick={() => setIsMobileMenuOpen(false)}>ANA SAYFA</Link>
-            <NavLink end to="/modeller" onClick={() => setIsMobileMenuOpen(false)}>MODELLER</NavLink>
-            <NavLink end to="/iletisim" onClick={() => setIsMobileMenuOpen(false)}>İLETİŞİM</NavLink>
-          </div>
-        </aside>
-      </header>
+      <PublicHeader />
 
       {routeName === 'products' && (
         <main className="catalog-layout">
@@ -499,10 +420,8 @@ function CatalogApp() {
             <aside className="contact-panel">
               <strong>Perdecim Zonguldak</strong>
               <span>Adres: Cumhuriyet Caddesi TK Mobilya Yanı, Zonguldak Merkez</span>
-              <span>E-posta:</span>
               <span>Instagram: @halicimahmutay</span>
               <span>Çalışma saatleri: 09:00 - 19:00</span>
-              <a href="https://www.google.com/maps/search/?api=1&query=Zonguldak%20Perdecim" target="_blank" rel="noreferrer">Yol Tarifi Al</a>
             </aside>
           </section>
         </main>
@@ -616,8 +535,9 @@ function RouteEffects() {
 
   useEffect(() => {
     if (location.pathname === '/') document.title = 'Perdecim | Zonguldak Perde Modelleri'
+    if (location.pathname === '/musterilerimizden-gelenler') document.title = 'Müşterilerimizden Gelenler | Perdecim'
     if (location.pathname.startsWith('/yonetim')) document.title = 'Yönetim | Perdecim'
-    if (!['/', '/modeller', '/iletisim'].includes(location.pathname) && !location.pathname.startsWith('/modeller/') && !location.pathname.startsWith('/yonetim')) {
+    if (!['/', '/modeller', '/iletisim', '/musterilerimizden-gelenler'].includes(location.pathname) && !location.pathname.startsWith('/modeller/') && !location.pathname.startsWith('/yonetim')) {
       document.title = 'Sayfa Bulunamadı | Perdecim'
     }
 
@@ -640,6 +560,7 @@ function App() {
         <Route path="/modeller" element={<CatalogApp />} />
         <Route path="/modeller/:productId" element={<CatalogApp />} />
         <Route path="/iletisim" element={<CatalogApp />} />
+        <Route path="/musterilerimizden-gelenler" element={<CustomerGalleryPage />} />
         <Route path="/yonetim/*" element={<AdminPanel />} />
         <Route path="/products" element={<Navigate replace to="/modeller" />} />
         <Route path="*" element={<NotFoundPage />} />
@@ -671,12 +592,15 @@ function NotFoundPage() {
   const navigateTo = useNavigate()
 
   return (
-    <main className="route-not-found">
-      <p>404</p>
-      <h1>Sayfa bulunamadı</h1>
-      <span>Aradığınız sayfa kaldırılmış veya adresi değişmiş olabilir.</span>
-      <button className="button button-primary" type="button" onClick={() => navigateTo('/')}>ANA SAYFAYA DÖN</button>
-    </main>
+    <div className="landing-page">
+      <PublicHeader />
+      <main className="route-not-found">
+        <p>404</p>
+        <h1>Sayfa bulunamadı</h1>
+        <span>Aradığınız sayfa kaldırılmış veya adresi değişmiş olabilir.</span>
+        <button className="button button-primary" type="button" onClick={() => navigateTo('/')}>ANA SAYFAYA DÖN</button>
+      </main>
+    </div>
   )
 }
 

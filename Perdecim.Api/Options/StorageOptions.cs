@@ -11,6 +11,7 @@ public class StorageOptions
     public string Region { get; set; } = "us-east-1";
     public string ProductImagePrefix { get; set; } = "products";
     public string SampleBookImagePrefix { get; set; } = "sample-books";
+    public string CustomerHomeImagePrefix { get; set; } = "customer-homes";
 
     public bool UseS3 =>
         string.Equals(Provider, "S3", StringComparison.OrdinalIgnoreCase)
