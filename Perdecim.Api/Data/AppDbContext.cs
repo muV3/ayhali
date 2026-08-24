@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<CustomerHomeImage> CustomerHomeImages => Set<CustomerHomeImage>();
     public DbSet<FabricSampleBook> FabricSampleBooks => Set<FabricSampleBook>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Color> Colors => Set<Color>();
@@ -23,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         base.OnModelCreating(modelBuilder);
 
         ConfigureProducts(modelBuilder);
+        ConfigureCustomerHomeImages(modelBuilder);
         ConfigureFabricSampleBooks(modelBuilder);
         ConfigureLookupTables(modelBuilder);
         ConfigureAdminUsers(modelBuilder);
@@ -102,6 +104,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(color => color.ProductColors)
                 .HasForeignKey(productColor => productColor.ColorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureCustomerHomeImages(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CustomerHomeImage>(entity =>
+        {
+            entity.HasIndex(image => image.DisplayOrder);
+            entity.HasIndex(image => image.IsFavorite);
+            entity.Property(image => image.ImageUrl).HasMaxLength(500).IsRequired();
+            entity.Property(image => image.IsFavorite).HasDefaultValue(false);
+            entity.Property(image => image.CreatedAt).HasDefaultValueSql("now()");
         });
     }
 

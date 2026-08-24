@@ -66,6 +66,6 @@ public static partial class ProductImageVariants
             .ToList();
     }
 
-    [GeneratedRegex(@"^(?<prefix>.*[\\/])?(?<stem>\d+-[a-f0-9]{32})-(?<width>\d{1,5})\.webp$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?<prefix>.*[\\/])?(?<stem>(?:\d+-)?[a-f0-9]{32})-(?<width>\d{1,5})\.webp$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex GeneratedVariantPattern();
 }

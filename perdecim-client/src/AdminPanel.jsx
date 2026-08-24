@@ -5,6 +5,7 @@ import './AdminPanel.css'
 
 const SESSION_KEY = 'perdecim-admin-session'
 const ADMIN_PRODUCT_PAGE_SIZE = 60
+const ADMIN_CUSTOMER_HOME_PAGE_SIZE = 9
 
 const lookupGroups = [
   { key: 'categories', label: 'Kategoriler', singular: 'Kategori' },
@@ -177,6 +178,8 @@ function AdminWorkspace({ session, onLogout }) {
   const [lookupsLoading, setLookupsLoading] = useState(true)
   const [sampleBooks, setSampleBooks] = useState([])
   const [sampleBooksLoading, setSampleBooksLoading] = useState(true)
+  const [customerHomeImages, setCustomerHomeImages] = useState([])
+  const [customerHomeImagesLoading, setCustomerHomeImagesLoading] = useState(true)
   const [toast, setToast] = useState(null)
 
   const request = useMemo(() => (path, options = {}) => apiRequest(path, {
@@ -212,6 +215,17 @@ function AdminWorkspace({ session, onLogout }) {
     }
   }, [request, showToast])
 
+  const loadCustomerHomeImages = useCallback(async () => {
+    setCustomerHomeImagesLoading(true)
+    try {
+      setCustomerHomeImages(await request('/api/customer-home-images'))
+    } catch (error) {
+      showToast(error.message, 'error')
+    } finally {
+      setCustomerHomeImagesLoading(false)
+    }
+  }, [request, showToast])
+
   useEffect(() => {
     loadLookups()
   }, [loadLookups])
@@ -219,6 +233,10 @@ function AdminWorkspace({ session, onLogout }) {
   useEffect(() => {
     loadSampleBooks()
   }, [loadSampleBooks])
+
+  useEffect(() => {
+    loadCustomerHomeImages()
+  }, [loadCustomerHomeImages])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -237,6 +255,10 @@ function AdminWorkspace({ session, onLogout }) {
           <button className={section === 'products' ? 'active' : ''} onClick={() => setSection('products')} type="button">
             <span className="admin-nav-symbol" aria-hidden="true">▦</span>
             Ürünler
+          </button>
+          <button className={section === 'customer-homes' ? 'active' : ''} onClick={() => setSection('customer-homes')} type="button">
+            <span className="admin-nav-symbol" aria-hidden="true">▧</span>
+            Müşterilerimizden
           </button>
           <button className={section === 'attributes' ? 'active' : ''} onClick={() => setSection('attributes')} type="button">
             <span className="admin-nav-symbol" aria-hidden="true">◇</span>
@@ -261,6 +283,7 @@ function AdminWorkspace({ session, onLogout }) {
         </header>
         <div className="admin-mobile-nav" role="navigation" aria-label="Yönetim menüsü">
           <button className={section === 'products' ? 'active' : ''} onClick={() => setSection('products')} type="button">Ürünler</button>
+          <button className={section === 'customer-homes' ? 'active' : ''} onClick={() => setSection('customer-homes')} type="button">Müşterilerimizden</button>
           <button className={section === 'sample-books' ? 'active' : ''} onClick={() => setSection('sample-books')} type="button">Kartelalar</button>
           <button className={section === 'attributes' ? 'active' : ''} onClick={() => setSection('attributes')} type="button">Özellikler</button>
         </div>
@@ -280,6 +303,16 @@ function AdminWorkspace({ session, onLogout }) {
             sampleBooks={sampleBooks}
             isLoading={sampleBooksLoading}
             refreshSampleBooks={loadSampleBooks}
+            request={request}
+            showToast={showToast}
+          />
+        )}
+        {section === 'customer-homes' && (
+          <CustomerHomeImagesManager
+            images={customerHomeImages}
+            isLoading={customerHomeImagesLoading}
+            setImages={setCustomerHomeImages}
+            refreshImages={loadCustomerHomeImages}
             request={request}
             showToast={showToast}
           />
@@ -714,6 +747,172 @@ function QueuedImage({ file, index, onRemove }) {
   const previewUrl = useMemo(() => URL.createObjectURL(file), [file])
   useEffect(() => () => URL.revokeObjectURL(previewUrl), [previewUrl])
   return <article><img src={previewUrl} alt="Yüklenecek görsel önizlemesi" /><span><strong>{file.name}</strong><small>{formatFileSize(file.size)}</small></span><button type="button" onClick={() => onRemove(index)} aria-label={`${file.name} görselini kaldır`}>×</button></article>
+}
+
+function getCustomerHomeImage(image) {
+  return {
+    url: image.imageUrl,
+    smallUrl: image.imageSmallUrl,
+    mediumUrl: image.imageMediumUrl,
+    largeUrl: image.imageLargeUrl,
+    smallWidth: image.imageSmallWidth,
+    mediumWidth: image.imageMediumWidth,
+    largeWidth: image.imageLargeWidth,
+  }
+}
+
+function CustomerHomeImage({ image, index }) {
+  const attributes = getResponsiveImageAttributes(getCustomerHomeImage(image), resolveImageUrl)
+  return <img {...attributes} sizes={attributes.srcSet ? '(max-width: 680px) calc(100vw - 48px), (max-width: 1100px) 50vw, 320px' : undefined} alt={`Müşteri evinden perde uygulaması ${index + 1}`} width="3" height="4" loading="lazy" decoding="async" />
+}
+
+function CustomerHomeImagesManager({ images, isLoading, setImages, refreshImages, request, showToast }) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
+  const [updatingFavoriteId, setUpdatingFavoriteId] = useState(null)
+  const [page, setPage] = useState(1)
+  const fileInputRef = useRef(null)
+  const favoriteCount = images.filter((image) => image.isFavorite).length
+  const totalPages = Math.max(1, Math.ceil(images.length / ADMIN_CUSTOMER_HOME_PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const firstImageIndex = (currentPage - 1) * ADMIN_CUSTOMER_HOME_PAGE_SIZE
+  const visibleImages = images.slice(firstImageIndex, firstImageIndex + ADMIN_CUSTOMER_HOME_PAGE_SIZE)
+
+  useEffect(() => {
+    if (page !== currentPage) setPage(currentPage)
+  }, [currentPage, page])
+
+  async function uploadImages(files) {
+    const selectedFiles = Array.from(files)
+    if (!selectedFiles.length) return
+
+    const invalidFile = selectedFiles.find((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)
+    if (invalidFile) {
+      showToast('JPG, PNG veya WebP biçiminde ve en fazla 10 MB görseller seçin.', 'error')
+      return
+    }
+
+    setIsUploading(true)
+    let uploadedCount = 0
+    try {
+      for (const file of selectedFiles) {
+        const body = new FormData()
+        body.append('file', file)
+        await request('/api/customer-home-images', { method: 'POST', body })
+        uploadedCount++
+      }
+      showToast(`${uploadedCount} müşteri görseli eklendi.`)
+    } catch (error) {
+      showToast(uploadedCount ? `${uploadedCount} görsel eklendi; kalan yükleme durdu: ${error.message}` : error.message, 'error')
+    } finally {
+      setIsUploading(false)
+      await refreshImages()
+    }
+  }
+
+  async function toggleFavorite(image) {
+    setUpdatingFavoriteId(image.id)
+    try {
+      const updatedImage = await request(`/api/customer-home-images/${image.id}/favorite`, {
+        method: 'PUT',
+        body: { isFavorite: !image.isFavorite },
+      })
+      setImages((currentImages) => currentImages.map((currentImage) => (
+        currentImage.id === updatedImage.id ? { ...currentImage, ...updatedImage } : currentImage
+      )))
+      showToast(image.isFavorite ? 'Görsel favorilerden çıkarıldı.' : 'Görsel ana sayfa favorilerine eklendi.')
+    } catch (error) {
+      showToast(error.message, 'error')
+    } finally {
+      setUpdatingFavoriteId(null)
+    }
+  }
+
+  async function deleteImage(image) {
+    if (!window.confirm('Bu müşteri görselini kalıcı olarak silmek istiyor musunuz?')) return
+    try {
+      await request(`/api/customer-home-images/${image.id}`, { method: 'DELETE' })
+      setImages((currentImages) => currentImages
+        .filter((currentImage) => currentImage.id !== image.id)
+        .map((currentImage, index) => ({ ...currentImage, displayOrder: index })))
+      showToast('Müşteri görseli silindi.')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  async function moveImage(index, direction) {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= images.length || isReordering) return
+
+    const reordered = [...images]
+    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
+    setIsReordering(true)
+    try {
+      const updatedImages = await request('/api/customer-home-images/order', {
+        method: 'PUT',
+        body: { imageIds: reordered.map((image) => image.id) },
+      })
+      setImages(updatedImages)
+    } catch (error) {
+      showToast(error.message, 'error')
+    } finally {
+      setIsReordering(false)
+    }
+  }
+
+  return (
+    <main className="admin-content">
+      <div className="admin-page-heading">
+        <div><p className="admin-eyebrow">Müşteri evleri fotoğraf galerisi</p><h1>Müşterilerimizden</h1><span>{images.length} görsel · {favoriteCount} / 10 favori</span></div>
+        <input ref={fileInputRef} className="admin-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={isUploading} onChange={(event) => { uploadImages(event.target.files); event.target.value = '' }} />
+        <button className="admin-button admin-button-primary" disabled={isUploading} onClick={() => fileInputRef.current?.click()} type="button"><span aria-hidden="true">＋</span> {isUploading ? 'Yükleniyor…' : 'Görsel ekle'}</button>
+      </div>
+
+      {isLoading ? <section className="admin-panel-card"><LoadingRows /></section> : images.length ? (
+        <>
+          <section className="admin-customer-home-grid" aria-label="Müşteri görselleri">
+            {visibleImages.map((image, pageIndex) => {
+              const imageIndex = firstImageIndex + pageIndex
+              return (
+                <article className="admin-customer-home-card" key={image.id}>
+                  <div className="admin-customer-home-media">
+                    <CustomerHomeImage image={image} index={imageIndex} />
+                  </div>
+                  <div className="admin-customer-home-card-body">
+                    <strong>{imageIndex + 1}. görsel</strong>
+                    <div className="admin-row-actions">
+                      <button className={`favorite${image.isFavorite ? ' active' : ''}`} type="button" disabled={updatingFavoriteId === image.id || (!image.isFavorite && favoriteCount >= 10)} onClick={() => toggleFavorite(image)} aria-label={image.isFavorite ? `${imageIndex + 1}. görseli favorilerden çıkar` : `${imageIndex + 1}. görseli favorilere ekle`} aria-pressed={image.isFavorite}>★ <span>{image.isFavorite ? 'Favori' : 'Favorile'}</span></button>
+                      <button type="button" disabled={imageIndex === 0 || isReordering} onClick={() => moveImage(imageIndex, -1)} aria-label={`${imageIndex + 1}. görseli önceye taşı`}>←</button>
+                      <button type="button" disabled={imageIndex === images.length - 1 || isReordering} onClick={() => moveImage(imageIndex, 1)} aria-label={`${imageIndex + 1}. görseli sonraya taşı`}>→</button>
+                      <button className="danger" type="button" onClick={() => deleteImage(image)}>Sil</button>
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </section>
+          {totalPages > 1 && (
+            <nav className="admin-pagination admin-customer-home-pagination" aria-label="Müşteri görseli sayfaları">
+              <span>{firstImageIndex + 1}–{Math.min(firstImageIndex + ADMIN_CUSTOMER_HOME_PAGE_SIZE, images.length)} / {images.length}</span>
+              <div>
+                <button disabled={currentPage === 1} onClick={() => setPage((pageNumber) => pageNumber - 1)} type="button">Önceki</button>
+                <span>Sayfa {currentPage} / {totalPages}</span>
+                <button disabled={currentPage === totalPages} onClick={() => setPage((pageNumber) => pageNumber + 1)} type="button">Sonraki</button>
+              </div>
+            </nav>
+          )}
+        </>
+      ) : (
+        <section className="admin-panel-card admin-empty-state">
+          <span aria-hidden="true">▧</span>
+          <h2>Henüz müşteri görseli eklenmemiş</h2>
+          <p>Müşteri evlerinden fotoğraflar ekleyerek ana sayfadaki galeriyi yayınlayın.</p>
+          <button className="admin-button admin-button-primary" onClick={() => fileInputRef.current?.click()} type="button">İlk görselleri ekle</button>
+        </section>
+      )}
+    </main>
+  )
 }
 
 function getSampleBookImage(sampleBook) {

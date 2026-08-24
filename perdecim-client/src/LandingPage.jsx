@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getMainProductImage, getResponsiveImageAttributes } from './responsiveImages.js'
+import PublicHeader from './PublicHeader.jsx'
 import showroomImg from './assets/perdecim-showroom.jpeg'
 import storefrontImg from './assets/perdecim-storefront.jpeg'
 
@@ -80,6 +82,12 @@ async function fetchProducts() {
   return result.items ?? []
 }
 
+async function fetchCustomerHomeImages() {
+  const response = await fetch(`${API_BASE_URL}/api/customer-home-images?favoritesOnly=true`)
+  if (!response.ok) throw new Error(`API request failed: ${response.status}`)
+  return response.json()
+}
+
 function ProductImage({ product, sizes = '(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 50vw, 33vw' }) {
   const image = getMainProductImage(product)
 
@@ -97,9 +105,9 @@ function ProductImage({ product, sizes = '(max-width: 700px) calc(100vw - 40px),
 
 function LandingPage({ onOpenProduct, onOpenProducts }) {
   const [products, setProducts] = useState(fallbackProducts)
+  const [customerHomeImages, setCustomerHomeImages] = useState([])
   const [activeHeroSlide, setActiveHeroSlide] = useState(0)
   const [isHeroSliderPaused, setIsHeroSliderPaused] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -110,6 +118,14 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
       })
       .catch(() => {
         if (isMounted) setProducts(fallbackProducts)
+      })
+
+    fetchCustomerHomeImages()
+      .then((items) => {
+        if (isMounted) setCustomerHomeImages(items.slice(0, 10))
+      })
+      .catch(() => {
+        if (isMounted) setCustomerHomeImages([])
       })
 
     return () => {
@@ -127,103 +143,16 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
     return () => window.clearTimeout(timeout)
   }, [activeHeroSlide, isHeroSliderPaused])
 
-  useEffect(() => {
-    if (!isMobileMenuOpen) return undefined
-
-    const previousOverflow = document.body.style.overflow
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setIsMobileMenuOpen(false)
-    }
-
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isMobileMenuOpen])
-
-  useEffect(() => {
-    const desktopViewport = window.matchMedia('(min-width: 981px)')
-    const closeOnDesktop = (event) => {
-      if (event.matches) setIsMobileMenuOpen(false)
-    }
-
-    desktopViewport.addEventListener('change', closeOnDesktop)
-    return () => desktopViewport.removeEventListener('change', closeOnDesktop)
-  }, [])
-
-  function handleSectionLink(event, sectionId) {
-    event.preventDefault()
-    document.querySelector(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  function handleMobileSectionLink(event, sectionId) {
-    event.preventDefault()
-    setIsMobileMenuOpen(false)
-    window.requestAnimationFrame(() => {
-      document.querySelector(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }
-
-  const newArrivals = useMemo(() => products.slice(0, 3), [products])
+  const newArrivals = useMemo(() => products.slice(0, 10), [products])
   const bestSellers = useMemo(() => {
     const preferred = products.filter((product) => product.isFeatured)
-    return (preferred.length ? preferred : products).slice(0, 3)
+    return (preferred.length ? preferred : products).slice(0, 10)
   }, [products])
   const featuredProduct = products.find((product) => product.isFeatured) ?? products[0]
 
   return (
     <div className="landing-page">
-      <header className="landing-header" aria-label="Site header">
-        <button
-          className={`mobile-menu-toggle${isMobileMenuOpen ? ' is-open' : ''}`}
-          type="button"
-          aria-label={isMobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
-          aria-controls="landing-mobile-menu"
-          aria-expanded={isMobileMenuOpen}
-          onClick={() => setIsMobileMenuOpen((current) => !current)}
-        >
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-        </button>
-        <a className="landing-brand" href="#hero" aria-label="Perdecim ana sayfa" onClick={(event) => handleSectionLink(event, '#hero')}>
-          <strong>Perdecim</strong>
-          <span>Zonguldak Showroom</span>
-        </a>
-        <nav className="desktop-nav" aria-label="Ana menü">
-          <a href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>Yeni Gelenler</a>
-          <a href="#best-sellers" onClick={(event) => handleSectionLink(event, '#best-sellers')}>Çok Satanlar</a>
-          <a href="#featured" onClick={(event) => handleSectionLink(event, '#featured')}>Öne Çıkan</a>
-          <button type="button" onClick={onOpenProducts}>MODELLER</button>
-        </nav>
-        <button
-          className={`mobile-menu-backdrop${isMobileMenuOpen ? ' is-open' : ''}`}
-          type="button"
-          aria-label="Menüyü kapat"
-          tabIndex={isMobileMenuOpen ? 0 : -1}
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-        <aside
-          id="landing-mobile-menu"
-          className={`mobile-side-menu${isMobileMenuOpen ? ' is-open' : ''}`}
-          role="navigation"
-          aria-label="Mobil ana menü"
-          aria-hidden={!isMobileMenuOpen}
-          inert={!isMobileMenuOpen}
-        >
-          <strong className="mobile-side-menu-title">Menü</strong>
-          <div className="mobile-side-menu-links">
-            <a href="#hero" onClick={(event) => handleMobileSectionLink(event, '#hero')}>Ana Sayfa</a>
-            <a href="#new-arrivals" onClick={(event) => handleMobileSectionLink(event, '#new-arrivals')}>Yeni Gelenler</a>
-            <a href="#best-sellers" onClick={(event) => handleMobileSectionLink(event, '#best-sellers')}>Çok Satanlar</a>
-            <a href="#featured" onClick={(event) => handleMobileSectionLink(event, '#featured')}>Öne Çıkan</a>
-            <button type="button" onClick={() => { setIsMobileMenuOpen(false); onOpenProducts() }}>Modeller</button>
-          </div>
-        </aside>
-      </header>
+      <PublicHeader />
 
       <main>
         <section id="hero" className="landing-hero">
@@ -291,12 +220,13 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
           onOpenProduct={onOpenProduct}
         />
 
+        <CustomerHomesSection images={customerHomeImages} />
+
         <ProductSection
           id="best-sellers"
           eyebrow="Çok Satanlar"
           title="En çok ilgi gören modeller"
           products={bestSellers}
-          tone="stone"
           onOpenProduct={onOpenProduct}
         />
 
@@ -341,18 +271,167 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
 }
 
 function ProductSection({ eyebrow, id, onOpenProduct, products, title, tone = 'light' }) {
+  const carouselRef = useRef(null)
+  const [scrollState, setScrollState] = useState({ canGoBack: false, canGoForward: false })
+
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return undefined
+
+    const updateScrollState = () => {
+      const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth
+      const nextState = {
+        canGoBack: carousel.scrollLeft > 2,
+        canGoForward: carousel.scrollLeft < maxScrollLeft - 2,
+      }
+      setScrollState((current) => current.canGoBack === nextState.canGoBack && current.canGoForward === nextState.canGoForward ? current : nextState)
+    }
+
+    const resizeObserver = new ResizeObserver(updateScrollState)
+    resizeObserver.observe(carousel)
+    carousel.addEventListener('scroll', updateScrollState, { passive: true })
+    updateScrollState()
+
+    return () => {
+      resizeObserver.disconnect()
+      carousel.removeEventListener('scroll', updateScrollState)
+    }
+  }, [products])
+
+  function moveCarousel(direction) {
+    const carousel = carouselRef.current
+    const card = carousel?.querySelector('.landing-product-card')
+    if (!carousel || !card) return
+
+    const gap = Number.parseFloat(window.getComputedStyle(carousel).columnGap) || 0
+    carousel.scrollBy({ left: direction * 2 * (card.getBoundingClientRect().width + gap), behavior: 'smooth' })
+  }
+
   return (
     <section id={id} className={`landing-section landing-section-${tone}`}>
-      <div className="landing-section-heading reveal-on-scroll">
-        <p className="section-eyebrow">{eyebrow}</p>
-        <h2>{title}</h2>
+      <div className="landing-section-heading-row">
+        <div className="landing-section-heading reveal-on-scroll">
+          <p className="section-eyebrow">{eyebrow}</p>
+          <h2>{title}</h2>
+        </div>
+        <div className="landing-carousel-controls" aria-label={`${eyebrow} carousel controls`}>
+          <button type="button" aria-label="Önceki ürün" disabled={!scrollState.canGoBack} onClick={() => moveCarousel(-1)}>←</button>
+          <button type="button" aria-label="Sonraki ürün" disabled={!scrollState.canGoForward} onClick={() => moveCarousel(1)}>→</button>
+        </div>
       </div>
-      <div className="landing-product-grid">
+      <div
+        className="landing-product-grid"
+        ref={carouselRef}
+        role="region"
+        aria-roledescription="carousel"
+        aria-label={`${eyebrow} ürünleri`}
+        tabIndex="0"
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') { event.preventDefault(); moveCarousel(-1) }
+          if (event.key === 'ArrowRight') { event.preventDefault(); moveCarousel(1) }
+        }}
+      >
         {products.map((product, index) => (
           <ProductCard index={index} key={product.id} onOpen={onOpenProduct} product={product} />
         ))}
       </div>
     </section>
+  )
+}
+
+function CustomerHomesSection({ images }) {
+  const carouselRef = useRef(null)
+  const [scrollState, setScrollState] = useState({ canGoBack: false, canGoForward: false })
+
+  useEffect(() => {
+    const carousel = carouselRef.current
+    if (!carousel) return undefined
+
+    const updateScrollState = () => {
+      const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth
+      const nextState = {
+        canGoBack: carousel.scrollLeft > 2,
+        canGoForward: carousel.scrollLeft < maxScrollLeft - 2,
+      }
+      setScrollState((current) => current.canGoBack === nextState.canGoBack && current.canGoForward === nextState.canGoForward ? current : nextState)
+    }
+
+    const resizeObserver = new ResizeObserver(updateScrollState)
+    resizeObserver.observe(carousel)
+    carousel.addEventListener('scroll', updateScrollState, { passive: true })
+    updateScrollState()
+
+    return () => {
+      resizeObserver.disconnect()
+      carousel.removeEventListener('scroll', updateScrollState)
+    }
+  }, [images])
+
+  function moveCarousel(direction) {
+    const carousel = carouselRef.current
+    const card = carousel?.querySelector('.landing-customer-home-card')
+    if (!carousel || !card) return
+
+    const gap = Number.parseFloat(window.getComputedStyle(carousel).columnGap) || 0
+    carousel.scrollBy({ left: direction * 2 * (card.getBoundingClientRect().width + gap), behavior: 'smooth' })
+  }
+
+  return (
+    <section id="customer-homes" className="landing-section landing-section-stone landing-customer-home-section">
+      <div className="landing-section-heading-row">
+        <div className="landing-section-heading reveal-on-scroll">
+          <h2>Müşterilerimizden gelenler</h2>
+        </div>
+        <div className="landing-section-heading-actions">
+          <Link className="landing-gallery-link" to="/musterilerimizden-gelenler">Tümünü gör</Link>
+          {images.length > 0 && (
+            <div className="landing-carousel-controls" aria-label="Müşterilerimizden gelenler galeri kontrolleri">
+              <button type="button" aria-label="Önceki görseller" disabled={!scrollState.canGoBack} onClick={() => moveCarousel(-1)}>←</button>
+              <button type="button" aria-label="Sonraki görseller" disabled={!scrollState.canGoForward} onClick={() => moveCarousel(1)}>→</button>
+            </div>
+          )}
+        </div>
+      </div>
+      {images.length > 0 ? (
+        <div
+          className="landing-product-grid landing-customer-home-grid"
+          ref={carouselRef}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Müşteri evlerinden fotoğraflar"
+          tabIndex="0"
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') { event.preventDefault(); moveCarousel(-1) }
+            if (event.key === 'ArrowRight') { event.preventDefault(); moveCarousel(1) }
+          }}
+        >
+          {images.map((image, index) => (
+            <CustomerHomeCard image={image} index={index} key={image.id} />
+          ))}
+        </div>
+      ) : (
+        <div className="landing-customer-home-empty">Ana sayfa için favori görseller yakında burada yer alacak.</div>
+      )}
+    </section>
+  )
+}
+
+function CustomerHomeCard({ image, index }) {
+  const responsiveImage = {
+    url: image.imageUrl,
+    smallUrl: image.imageSmallUrl,
+    mediumUrl: image.imageMediumUrl,
+    largeUrl: image.imageLargeUrl,
+    smallWidth: image.imageSmallWidth,
+    mediumWidth: image.imageMediumWidth,
+    largeWidth: image.imageLargeWidth,
+  }
+  const attributes = getResponsiveImageAttributes(responsiveImage, (url) => url.startsWith('http') ? url : `${API_BASE_URL}${url}`)
+
+  return (
+    <figure className="landing-customer-home-card reveal-on-scroll" style={{ transitionDelay: `${index * 70}ms` }}>
+      <img {...attributes} sizes={attributes.srcSet ? '(max-width: 700px) 78vw, 352px' : undefined} alt={`Müşteri evinden perde uygulaması ${index + 1}`} width="2" height="3" loading="lazy" decoding="async" />
+    </figure>
   )
 }
 

@@ -47,8 +47,16 @@ public class ProductImageService(
         var imageRoute = BuildImageRoute(objectKey);
         var variantFamilyPrefix = ProductImageVariants.GetVariantFamilyPrefix(imageRoute);
         var sampleBookPrefix = storageOptions.Value.SampleBookImagePrefix.Trim('/');
+        var customerHomePrefix = storageOptions.Value.CustomerHomeImagePrefix.Trim('/');
         var isSampleBookImage = objectKey.StartsWith($"{sampleBookPrefix}/", StringComparison.Ordinal);
-        var imageExists = isSampleBookImage
+        var isCustomerHomeImage = objectKey.StartsWith($"{customerHomePrefix}/", StringComparison.Ordinal);
+        var imageExists = isCustomerHomeImage
+            ? variantFamilyPrefix is null
+                ? await dbContext.CustomerHomeImages.AsNoTracking().AnyAsync(image => image.ImageUrl == imageRoute, cancellationToken)
+                : await dbContext.CustomerHomeImages.AsNoTracking().AnyAsync(
+                    image => image.ImageUrl.StartsWith(variantFamilyPrefix) && image.ImageUrl.EndsWith(".webp"),
+                    cancellationToken)
+            : isSampleBookImage
             ? variantFamilyPrefix is null
                 ? await dbContext.FabricSampleBooks.AsNoTracking().AnyAsync(book => book.ImageUrl == imageRoute, cancellationToken)
                 : await dbContext.FabricSampleBooks.AsNoTracking().AnyAsync(
@@ -175,6 +183,23 @@ public class ProductImageService(
             cancellationToken);
 
         return (imageUrl, processingError);
+    }
+
+    public async Task<(string? ImageUrl, IReadOnlyList<string> SavedImageUrls, string? Error)> UploadCustomerHomeImageAsync(
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var validationError = await ValidateFileAsync(file, cancellationToken);
+        if (validationError is not null)
+        {
+            return (null, [], validationError);
+        }
+
+        return await StoreOptimizedImageAsync(
+            file,
+            Guid.NewGuid().ToString("N"),
+            storageOptions.Value.CustomerHomeImagePrefix,
+            cancellationToken);
     }
 
     public async Task<(bool Deleted, bool ProductNotFound)> DeleteImageAsync(
@@ -577,12 +602,14 @@ public class ProductImageService(
     {
         var productPrefix = storageOptions.Value.ProductImagePrefix.Trim('/');
         var sampleBookPrefix = storageOptions.Value.SampleBookImagePrefix.Trim('/');
+        var customerHomePrefix = storageOptions.Value.CustomerHomeImagePrefix.Trim('/');
         return !string.IsNullOrWhiteSpace(objectKey)
             && !objectKey.Contains("..", StringComparison.Ordinal)
             && !objectKey.Contains('\\')
             && !Path.IsPathRooted(objectKey)
             && (objectKey.StartsWith($"{productPrefix}/", StringComparison.Ordinal)
-                || objectKey.StartsWith($"{sampleBookPrefix}/", StringComparison.Ordinal));
+                || objectKey.StartsWith($"{sampleBookPrefix}/", StringComparison.Ordinal)
+                || objectKey.StartsWith($"{customerHomePrefix}/", StringComparison.Ordinal));
     }
 
     private static string GetContentType(string filePath)

@@ -322,6 +322,16 @@
 .admin-mobile-header,
 .admin-mobile-nav { display: none; }
 
+.admin-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .admin-content {
   width: min(100%, 1380px);
   margin: 0 auto;
@@ -565,6 +575,68 @@
   gap: 18px;
 }
 
+.admin-customer-home-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-customer-home-pagination {
+  margin-top: 24px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+}
+
+.admin-customer-home-card {
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: 0 10px 35px rgba(15, 23, 42, .045);
+}
+
+.admin-customer-home-media {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #efefeb;
+}
+
+.admin-customer-home-media > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.admin-customer-home-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.admin-customer-home-card-body > strong {
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.admin-customer-home-card .admin-row-actions button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.admin-customer-home-card .admin-row-actions .favorite {
+  color: var(--admin-muted);
+}
+
+.admin-customer-home-card .admin-row-actions .favorite.active {
+  color: #765c00;
+  background: #fff6d6;
+}
+
 .admin-sample-book-card {
   align-self: start;
   overflow: hidden;
@@ -626,12 +698,13 @@
   .admin-mobile-header .admin-brand-mark { width: 34px; height: 34px; border-radius: 8px; font-size: 18px; }
   .admin-mobile-header .admin-sidebar-brand { gap: 9px; }
   .admin-mobile-header .admin-sidebar-brand strong { font-size: 18px; }
-  .admin-mobile-nav { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 18px 0; background: #fff; }
+  .admin-mobile-nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 18px 0; background: #fff; }
   .admin-mobile-nav button { min-height: 40px; border: 0; border-bottom: 3px solid transparent; color: var(--admin-muted); background: transparent; font-weight: 800; }
   .admin-mobile-nav button.active { border-color: var(--admin-primary); color: var(--admin-text); }
   .admin-form-section { grid-template-columns: 1fr; }
   .admin-form-section-heading { max-width: 560px; }
   .admin-sample-book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-customer-home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 680px) {
@@ -671,8 +744,9 @@
   .admin-attribute-tabs { display: flex; overflow-x: auto; padding-bottom: 5px; }
   .admin-attribute-tabs button { flex: 0 0 auto; }
   .admin-add-attribute { grid-template-columns: 1fr; }
-  .admin-mobile-nav { overflow-x: auto; grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+  .admin-mobile-nav { overflow-x: auto; grid-template-columns: repeat(4, minmax(120px, 1fr)); }
   .admin-sample-book-grid { grid-template-columns: 1fr; }
+  .admin-customer-home-grid { grid-template-columns: 1fr; }
   .admin-sample-book-form-section { grid-template-columns: 1fr; }
 }
 
