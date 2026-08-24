@@ -99,6 +99,7 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
   const [products, setProducts] = useState(fallbackProducts)
   const [activeHeroSlide, setActiveHeroSlide] = useState(0)
   const [isHeroSliderPaused, setIsHeroSliderPaused] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -126,9 +127,44 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
     return () => window.clearTimeout(timeout)
   }, [activeHeroSlide, isHeroSliderPaused])
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false)
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isMobileMenuOpen])
+
+  useEffect(() => {
+    const desktopViewport = window.matchMedia('(min-width: 981px)')
+    const closeOnDesktop = (event) => {
+      if (event.matches) setIsMobileMenuOpen(false)
+    }
+
+    desktopViewport.addEventListener('change', closeOnDesktop)
+    return () => desktopViewport.removeEventListener('change', closeOnDesktop)
+  }, [])
+
   function handleSectionLink(event, sectionId) {
     event.preventDefault()
     document.querySelector(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function handleMobileSectionLink(event, sectionId) {
+    event.preventDefault()
+    setIsMobileMenuOpen(false)
+    window.requestAnimationFrame(() => {
+      document.querySelector(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   const newArrivals = useMemo(() => products.slice(0, 3), [products])
@@ -141,16 +177,52 @@ function LandingPage({ onOpenProduct, onOpenProducts }) {
   return (
     <div className="landing-page">
       <header className="landing-header" aria-label="Site header">
+        <button
+          className={`mobile-menu-toggle${isMobileMenuOpen ? ' is-open' : ''}`}
+          type="button"
+          aria-label={isMobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
+          aria-controls="landing-mobile-menu"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+        >
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </button>
         <a className="landing-brand" href="#hero" aria-label="Perdecim ana sayfa" onClick={(event) => handleSectionLink(event, '#hero')}>
           <strong>Perdecim</strong>
           <span>Zonguldak Showroom</span>
         </a>
-        <nav aria-label="Ana menü">
+        <nav className="desktop-nav" aria-label="Ana menü">
           <a href="#new-arrivals" onClick={(event) => handleSectionLink(event, '#new-arrivals')}>Yeni Gelenler</a>
           <a href="#best-sellers" onClick={(event) => handleSectionLink(event, '#best-sellers')}>Çok Satanlar</a>
           <a href="#featured" onClick={(event) => handleSectionLink(event, '#featured')}>Öne Çıkan</a>
           <button type="button" onClick={onOpenProducts}>MODELLER</button>
         </nav>
+        <button
+          className={`mobile-menu-backdrop${isMobileMenuOpen ? ' is-open' : ''}`}
+          type="button"
+          aria-label="Menüyü kapat"
+          tabIndex={isMobileMenuOpen ? 0 : -1}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+        <aside
+          id="landing-mobile-menu"
+          className={`mobile-side-menu${isMobileMenuOpen ? ' is-open' : ''}`}
+          role="navigation"
+          aria-label="Mobil ana menü"
+          aria-hidden={!isMobileMenuOpen}
+          inert={!isMobileMenuOpen}
+        >
+          <strong className="mobile-side-menu-title">Menü</strong>
+          <div className="mobile-side-menu-links">
+            <a href="#hero" onClick={(event) => handleMobileSectionLink(event, '#hero')}>Ana Sayfa</a>
+            <a href="#new-arrivals" onClick={(event) => handleMobileSectionLink(event, '#new-arrivals')}>Yeni Gelenler</a>
+            <a href="#best-sellers" onClick={(event) => handleMobileSectionLink(event, '#best-sellers')}>Çok Satanlar</a>
+            <a href="#featured" onClick={(event) => handleMobileSectionLink(event, '#featured')}>Öne Çıkan</a>
+            <button type="button" onClick={() => { setIsMobileMenuOpen(false); onOpenProducts() }}>Modeller</button>
+          </div>
+        </aside>
       </header>
 
       <main>
