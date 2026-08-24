@@ -772,6 +772,7 @@ function CustomerHomeImagesManager({ images, isLoading, setImages, refreshImages
   const [updatingFavoriteId, setUpdatingFavoriteId] = useState(null)
   const [page, setPage] = useState(1)
   const fileInputRef = useRef(null)
+  const pageHeadingRef = useRef(null)
   const favoriteCount = images.filter((image) => image.isFavorite).length
   const totalPages = Math.max(1, Math.ceil(images.length / ADMIN_CUSTOMER_HOME_PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -861,9 +862,17 @@ function CustomerHomeImagesManager({ images, isLoading, setImages, refreshImages
     }
   }
 
+  function changePage(nextPage) {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) return
+    setPage(nextPage)
+    window.requestAnimationFrame(() => {
+      pageHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   return (
     <main className="admin-content">
-      <div className="admin-page-heading">
+      <div className="admin-page-heading admin-customer-home-heading" ref={pageHeadingRef}>
         <div><p className="admin-eyebrow">Müşteri evleri fotoğraf galerisi</p><h1>Müşterilerimizden</h1><span>{images.length} görsel · {favoriteCount} / 10 favori</span></div>
         <input ref={fileInputRef} className="admin-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={isUploading} onChange={(event) => { uploadImages(event.target.files); event.target.value = '' }} />
         <button className="admin-button admin-button-primary" disabled={isUploading} onClick={() => fileInputRef.current?.click()} type="button"><span aria-hidden="true">＋</span> {isUploading ? 'Yükleniyor…' : 'Görsel ekle'}</button>
@@ -896,9 +905,9 @@ function CustomerHomeImagesManager({ images, isLoading, setImages, refreshImages
             <nav className="admin-pagination admin-customer-home-pagination" aria-label="Müşteri görseli sayfaları">
               <span>{firstImageIndex + 1}–{Math.min(firstImageIndex + ADMIN_CUSTOMER_HOME_PAGE_SIZE, images.length)} / {images.length}</span>
               <div>
-                <button disabled={currentPage === 1} onClick={() => setPage((pageNumber) => pageNumber - 1)} type="button">Önceki</button>
+                <button disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)} type="button">Önceki</button>
                 <span>Sayfa {currentPage} / {totalPages}</span>
-                <button disabled={currentPage === totalPages} onClick={() => setPage((pageNumber) => pageNumber + 1)} type="button">Sonraki</button>
+                <button disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)} type="button">Sonraki</button>
               </div>
             </nav>
           )}

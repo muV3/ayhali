@@ -98,32 +98,36 @@ public class CustomerHomeImageService(
         bool isFavorite,
         CancellationToken cancellationToken)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        await dbContext.Database.ExecuteSqlRawAsync(
-            """LOCK TABLE "CustomerHomeImages" IN SHARE ROW EXCLUSIVE MODE;""",
-            cancellationToken);
-
-        var image = await dbContext.CustomerHomeImages.FindAsync([id], cancellationToken);
-        if (image is null)
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync<(CustomerHomeImageDto? Image, string? Error, bool NotFound)>(async () =>
         {
-            return (null, null, true);
-        }
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """LOCK TABLE "CustomerHomeImages" IN SHARE ROW EXCLUSIVE MODE;""",
+                cancellationToken);
 
-        if (isFavorite && !image.IsFavorite)
-        {
-            var favoriteCount = await dbContext.CustomerHomeImages
-                .CountAsync(item => item.IsFavorite, cancellationToken);
-            if (!CanFavorite(favoriteCount, image.IsFavorite))
+            var image = await dbContext.CustomerHomeImages.FindAsync([id], cancellationToken);
+            if (image is null)
             {
-                return (null, $"Ana sayfada en fazla {MaximumFavoriteCount} favori görsel gösterilebilir.", false);
+                return (null, null, true);
             }
-        }
 
-        image.IsFavorite = isFavorite;
-        image.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return (ToDto(image), null, false);
+            if (isFavorite && !image.IsFavorite)
+            {
+                var favoriteCount = await dbContext.CustomerHomeImages
+                    .CountAsync(item => item.IsFavorite, cancellationToken);
+                if (!CanFavorite(favoriteCount, image.IsFavorite))
+                {
+                    return (null, $"Ana sayfada en fazla {MaximumFavoriteCount} favori görsel gösterilebilir.", false);
+                }
+            }
+
+            image.IsFavorite = isFavorite;
+            image.UpdatedAt = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return (ToDto(image), null, false);
+        });
     }
 
     internal static bool CanFavorite(int existingFavoriteCount, bool alreadyFavorite)

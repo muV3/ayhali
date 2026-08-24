@@ -346,6 +346,10 @@
   margin-bottom: 28px;
 }
 
+.admin-customer-home-heading {
+  scroll-margin-top: 76px;
+}
+
 .admin-page-heading h1 { font-size: clamp(36px, 5vw, 52px); line-height: 1; }
 .admin-page-heading > div > span { display: block; margin-top: 10px; color: var(--admin-muted); font-size: 14px; }
 
