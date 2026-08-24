@@ -176,6 +176,7 @@ function CatalogApp() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [selectedProductDetail, setSelectedProductDetail] = useState(null)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const query = searchParams.get('q') ?? ''
   const [debouncedQuery, setDebouncedQuery] = useState(query)
   const filterSignature = ['kategori', 'renk', 'olcu', 'stil', 'materyal', 'stok', 'siralama']
@@ -194,6 +195,37 @@ function CatalogApp() {
     }
   }, [filterSignature])
   const page = readCatalogPage(searchParams)
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false)
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isMobileMenuOpen])
+
+  useEffect(() => {
+    const desktopViewport = window.matchMedia('(min-width: 901px)')
+    const closeOnDesktop = (event) => {
+      if (event.matches) setIsMobileMenuOpen(false)
+    }
+
+    desktopViewport.addEventListener('change', closeOnDesktop)
+    return () => desktopViewport.removeEventListener('change', closeOnDesktop)
+  }, [])
 
   function setQuery(nextQuery) {
     setSearchParams(writeCatalogSearchParams(nextQuery, filters), { replace: true })
@@ -354,11 +386,23 @@ function CatalogApp() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <Link className="brand" to="/">
+        <button
+          className={`mobile-menu-toggle${isMobileMenuOpen ? ' is-open' : ''}`}
+          type="button"
+          aria-label={isMobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
+          aria-controls="catalog-mobile-menu"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+        >
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </button>
+        <Link className="brand" to="/" onClick={() => setIsMobileMenuOpen(false)}>
           <strong>Perdecim</strong>
           <span>Zonguldak</span>
         </Link>
-        <nav aria-label="Ana menü">
+        <nav className="desktop-nav" aria-label="Ana menü">
           {[
             ['products', 'MODELLER'],
             ['contact', 'İLETİŞİM'],
@@ -368,6 +412,28 @@ function CatalogApp() {
             </NavLink>
           ))}
         </nav>
+        <button
+          className={`mobile-menu-backdrop${isMobileMenuOpen ? ' is-open' : ''}`}
+          type="button"
+          aria-label="Menüyü kapat"
+          tabIndex={isMobileMenuOpen ? 0 : -1}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+        <aside
+          id="catalog-mobile-menu"
+          className={`mobile-side-menu${isMobileMenuOpen ? ' is-open' : ''}`}
+          role="navigation"
+          aria-label="Mobil ana menü"
+          aria-hidden={!isMobileMenuOpen}
+          inert={!isMobileMenuOpen}
+        >
+          <strong className="mobile-side-menu-title">Menü</strong>
+          <div className="mobile-side-menu-links">
+            <Link to="/" onClick={() => setIsMobileMenuOpen(false)}>ANA SAYFA</Link>
+            <NavLink end to="/modeller" onClick={() => setIsMobileMenuOpen(false)}>MODELLER</NavLink>
+            <NavLink end to="/iletisim" onClick={() => setIsMobileMenuOpen(false)}>İLETİŞİM</NavLink>
+          </div>
+        </aside>
       </header>
 
       {routeName === 'products' && (
@@ -448,20 +514,44 @@ function CatalogApp() {
 }
 
 function CatalogFilters({ attributes, filters, query, setFilters, setQuery }) {
+  const [isExpanded, setIsExpanded] = useState(() => typeof window === 'undefined' || !window.matchMedia('(max-width: 900px)').matches)
+
+  useEffect(() => {
+    const mobileViewport = window.matchMedia('(max-width: 900px)')
+    const syncExpandedState = (event) => setIsExpanded(!event.matches)
+
+    mobileViewport.addEventListener('change', syncExpandedState)
+    return () => mobileViewport.removeEventListener('change', syncExpandedState)
+  }, [])
+
   function updateFilter(name, value) {
     setFilters((current) => ({ ...current, [name]: value }))
   }
 
   return (
-    <aside className="filters">
-      <label>Arama<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Model, kod veya renk" /></label>
-      <SelectFilter label="Kategori" value={filters.category} options={attributes.categories} onChange={(value) => updateFilter('category', value)} />
-      <SelectFilter label="Renk" value={filters.color} options={attributes.colors} onChange={(value) => updateFilter('color', value)} />
-      <SelectFilter label="Ölçü" value={filters.size} options={attributes.sizes} onChange={(value) => updateFilter('size', value)} />
-      <SelectFilter label="Stil" value={filters.style} options={attributes.styles} onChange={(value) => updateFilter('style', value)} />
-      <SelectFilter label="Materyal" value={filters.material} options={attributes.materials} onChange={(value) => updateFilter('material', value)} />
-      <label>Sıralama<select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}><option value="featured">Öne çıkanlar</option><option value="nameAsc">İsim A-Z</option><option value="nameDesc">İsim Z-A</option></select></label>
-      <label className="check-row"><input checked={filters.available} type="checkbox" onChange={(event) => updateFilter('available', event.target.checked)} />Sadece stoktakiler</label>
+    <aside className={`filters${isExpanded ? ' is-expanded' : ''}`}>
+      <button
+        className="filters-toggle"
+        type="button"
+        aria-controls="catalog-filter-fields"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((current) => !current)}
+      >
+        <span>Filtreler</span>
+        <span className="filters-toggle-icon" aria-hidden="true" />
+      </button>
+      <div className="filters-panel">
+        <div id="catalog-filter-fields" className="filters-panel-inner" aria-hidden={!isExpanded} inert={!isExpanded}>
+          <label>Arama<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Model, kod veya renk" /></label>
+          <SelectFilter label="Kategori" value={filters.category} options={attributes.categories} onChange={(value) => updateFilter('category', value)} />
+          <SelectFilter label="Renk" value={filters.color} options={attributes.colors} onChange={(value) => updateFilter('color', value)} />
+          <SelectFilter label="Ölçü" value={filters.size} options={attributes.sizes} onChange={(value) => updateFilter('size', value)} />
+          <SelectFilter label="Stil" value={filters.style} options={attributes.styles} onChange={(value) => updateFilter('style', value)} />
+          <SelectFilter label="Materyal" value={filters.material} options={attributes.materials} onChange={(value) => updateFilter('material', value)} />
+          <label>Sıralama<select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}><option value="featured">Öne çıkanlar</option><option value="nameAsc">İsim A-Z</option><option value="nameDesc">İsim Z-A</option></select></label>
+          <label className="check-row"><input checked={filters.available} type="checkbox" onChange={(event) => updateFilter('available', event.target.checked)} />Sadece stoktakiler</label>
+        </div>
+      </div>
     </aside>
   )
 }
@@ -510,7 +600,7 @@ function ProductGrid({ onOpen, products, priorityCount = 3 }) {
           <button type="button" className="product-image" onClick={() => onOpen(product)}><ProductArtwork product={product} priority={index < priorityCount} /></button>
           <div className="product-body">
             <p className="product-code">{product.code}</p>
-            <h3>{product.name}</h3>
+            <h3 title={product.name}>{product.name}</h3>
             <div className="tag-row"><span>{product.category}</span><span>{product.isAvailable ? 'Stokta' : 'Tükendi'}</span></div>
             <div className="card-actions"><button className="button button-outline button-sm" type="button" onClick={() => onOpen(product)}>DETAY</button></div>
           </div>
