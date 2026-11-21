@@ -9,6 +9,7 @@ public class StorageOptions
     public string? AccessKeyId { get; set; }
     public string? SecretAccessKey { get; set; }
     public string Region { get; set; } = "us-east-1";
+    public bool ForcePathStyle { get; set; }
     public string ProductImagePrefix { get; set; } = "products";
     public string SampleBookImagePrefix { get; set; } = "sample-books";
     public string CustomerHomeImagePrefix { get; set; } = "customer-homes";
