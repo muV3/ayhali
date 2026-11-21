@@ -78,12 +78,15 @@ public class ProductImageService(
             try
             {
                 using var client = CreateS3Client(storageOptions.Value);
-                var response = await client.GetObjectAsync(
+                using var response = await client.GetObjectAsync(
                     storageOptions.Value.BucketName,
                     objectKey,
                     cancellationToken);
 
-                return (response.ResponseStream, GetContentType(objectKey));
+                var content = new MemoryStream();
+                await response.ResponseStream.CopyToAsync(content, cancellationToken);
+                content.Position = 0;
+                return (content, GetContentType(objectKey));
             }
             catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
             {
