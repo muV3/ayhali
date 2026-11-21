@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Perdecim.Api.Options;
 using Perdecim.Api.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -7,6 +8,21 @@ namespace Perdecim.Api.Tests;
 
 public class ProductImageServiceTests
 {
+    [Fact]
+    public void CreateS3Config_UsesRailwaySigningAndUrlStyle()
+    {
+        var config = ProductImageService.CreateS3Config(new StorageOptions
+        {
+            Endpoint = "https://t3.storageapi.dev",
+            Region = "us-east-1",
+            ForcePathStyle = true
+        });
+
+        Assert.Equal("https://t3.storageapi.dev/", config.ServiceURL);
+        Assert.Equal("auto", config.AuthenticationRegion);
+        Assert.False(config.ForcePathStyle);
+    }
+
     [Fact]
     public void HasExpectedImageSignature_AcceptsSupportedFormats()
     {

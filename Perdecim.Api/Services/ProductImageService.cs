@@ -547,18 +547,30 @@ public class ProductImageService(
     private static AmazonS3Client CreateS3Client(StorageOptions options)
     {
         var credentials = new BasicAWSCredentials(options.AccessKeyId, options.SecretAccessKey);
+        return new AmazonS3Client(credentials, CreateS3Config(options));
+    }
+
+    internal static AmazonS3Config CreateS3Config(StorageOptions options)
+    {
+        var isRailwayBucket = Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpointUri)
+            && endpointUri.Host.EndsWith(".storageapi.dev", StringComparison.OrdinalIgnoreCase);
+        var signingRegion = isRailwayBucket ? "auto" : options.Region;
         var config = new AmazonS3Config
         {
-            ForcePathStyle = true,
-            RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region)
+            ForcePathStyle = isRailwayBucket ? false : options.ForcePathStyle
         };
 
         if (!string.IsNullOrWhiteSpace(options.Endpoint))
         {
             config.ServiceURL = options.Endpoint;
+            config.AuthenticationRegion = signingRegion;
+        }
+        else
+        {
+            config.RegionEndpoint = RegionEndpoint.GetBySystemName(signingRegion);
         }
 
-        return new AmazonS3Client(credentials, config);
+        return config;
     }
 
     private static string BuildObjectKey(string storagePrefix, string fileName)

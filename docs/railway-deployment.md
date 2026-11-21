@@ -32,13 +32,16 @@ Admin__Email=<initial admin email>
 Admin__Password=<initial admin password>
 Cors__AllowedOrigins__0=https://<frontend-domain>
 Storage__Provider=S3
-Storage__Endpoint=<Railway bucket S3 endpoint>
-Storage__BucketName=<bucket name>
-Storage__AccessKeyId=<access key>
-Storage__SecretAccessKey=<secret key>
-Storage__Region=us-east-1
+Storage__Endpoint=${{product-images.ENDPOINT}}
+Storage__BucketName=${{product-images.BUCKET}}
+Storage__AccessKeyId=${{product-images.ACCESS_KEY_ID}}
+Storage__SecretAccessKey=${{product-images.SECRET_ACCESS_KEY}}
+Storage__Region=${{product-images.REGION}}
+Storage__ForcePathStyle=false
 Storage__ProductImagePrefix=products
 ```
+
+The references keep the API synchronized if Railway rotates or changes the bucket credentials. They also match Railway's current virtual-hosted-style bucket configuration. If the bucket's Credentials tab explicitly reports path-style URLs, set `Storage__ForcePathStyle=true` instead.
 
 You can use `ConnectionStrings__DefaultConnection=<Npgsql connection string>` instead of `DATABASE_URL` if you prefer explicit .NET-style connection strings.
 
